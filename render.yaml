@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: answer-bot-ai
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: PAGE_ACCESS_TOKEN
+        sync: false
+      - key: FB_APP_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MOMO_API_USER_ID
+        sync: false
+      - key: MOMO_API_KEY
+        sync: false
+      - key: MOMO_SUBSCRIPTION_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
