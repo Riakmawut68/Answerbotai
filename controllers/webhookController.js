@@ -1,6 +1,7 @@
 const logger = require('../utils/logger');
 const User = require('../models/user');
 const messengerService = require('../services/messengerService');
+const aiService = require('../services/aiService');
 
 const webhookController = {
     // Verify webhook for Facebook
@@ -116,8 +117,23 @@ async function processUserMessage(user, messageText) {
 
         await user.save();
 
-        // Process message with OpenAI (to be implemented)
-        // Send response back to user
+        try {
+            // Check if content is appropriate
+            const isAppropriate = await aiService.isAppropriateContent(messageText);
+            if (!isAppropriate) {
+                await messengerService.sendText(user.messengerId, 
+                    "I apologize, but I cannot process that request as it may contain inappropriate content. Please ensure your message follows our content guidelines.");
+                return;
+            }
+
+            // Generate AI response
+            const aiResponse = await aiService.getFormattedResponse(messageText);
+            await messengerService.sendText(user.messengerId, aiResponse);
+        } catch (error) {
+            logger.error('Error getting AI response:', error);
+            await messengerService.sendText(user.messengerId, 
+                "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.");
+        }
 
     } catch (error) {
         logger.error('Error processing message:', error);
