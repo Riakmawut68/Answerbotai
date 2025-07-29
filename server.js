@@ -35,15 +35,21 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+  logger.info(`🚀 Server started successfully on port ${PORT}`);
+  logger.info(`🌐 Service URL: https://answerbotai.onrender.com`);
+  logger.info(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Log environment variables status
+  logger.info(`🔑 OpenAI API Key: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '❌ Missing'}`);
+  logger.info(`📱 SELF_URL: ${process.env.SELF_URL ? '✅ Configured' : '❌ Missing'}`);
   
   // Start self-ping service if SELF_URL is configured
   if (process.env.SELF_URL) {
-    logger.info(`SELF_URL configured: ${process.env.SELF_URL}`);
+    logger.info(`🔄 Starting self-ping service to: ${process.env.SELF_URL}`);
     startSelfPing();
   } else {
-    logger.warn('SELF_URL not configured - self-ping disabled');
-    logger.info('To enable self-ping, set SELF_URL environment variable to your service URL');
+    logger.warn('⚠️ SELF_URL not configured - self-ping disabled');
+    logger.info('💡 To enable self-ping, set SELF_URL environment variable to your service URL');
   }
 });
 

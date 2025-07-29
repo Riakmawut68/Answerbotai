@@ -24,6 +24,11 @@ const webhookController = {
     handleEvent: async (req, res) => {
         try {
             const { body } = req;
+            
+            logger.info(`📨 Received webhook event: ${body.object || 'unknown'}`);
+            if (body.entry && body.entry.length > 0) {
+                logger.info(`📝 Processing ${body.entry.length} entry/entries`);
+            }
 
             // Return 200 OK for all webhook events
             res.status(200).send('OK');
@@ -36,7 +41,7 @@ const webhookController = {
                 }
             }
         } catch (error) {
-            logger.error('Error handling webhook event:', error);
+            logger.error('❌ Error handling webhook event:', error);
             // Already sent 200 OK to Facebook
         }
     }
@@ -46,10 +51,12 @@ const webhookController = {
 async function handleMessage(event) {
     try {
         const senderId = event.sender.id;
+        logger.info(`👤 Processing message from user: ${senderId}`);
 
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
         if (!user) {
+            logger.info(`🆕 New user registered: ${senderId}`);
             user = new User({ messengerId: senderId });
             await user.save();
             // Send welcome message for new users
