@@ -27,3 +27,5 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
+      - key: SELF_URL
+        sync: false
