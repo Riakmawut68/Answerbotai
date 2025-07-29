@@ -48,6 +48,70 @@ const webhookController = {
             logger.error('❌ Error handling webhook event:', error);
             // Already sent 200 OK to Facebook
         }
+    },
+
+    // Handle payment callbacks from MTN MoMo
+    handlePaymentCallback: async (req, res) => {
+        try {
+            const { body } = req;
+            logger.info('💰 Payment callback received:', body);
+
+            // Verify payment status
+            const paymentStatus = await momoService.verifyPayment(body);
+            
+            if (paymentStatus.success) {
+                // Find user by payment reference
+                const user = await User.findOne({ 
+                    'paymentSession.reference': paymentStatus.reference 
+                });
+
+                if (user) {
+                    // Update user subscription
+                    user.stage = 'subscription_active';
+                    user.subscription = {
+                        plan: paymentStatus.plan,
+                        status: 'active',
+                        startDate: new Date(),
+                        expiryDate: paymentStatus.expiryDate,
+                        paymentReference: paymentStatus.reference
+                    };
+                    user.paymentSession = null;
+                    await user.save();
+
+                    // Send success message
+                    await messengerService.sendText(user.messengerId,
+                        '🎉 Payment successful! Your subscription is now active.\n\n' +
+                        'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
+                    );
+
+                    logger.info(`✅ Payment completed for user ${user.messengerId}`);
+                } else {
+                    logger.error('❌ User not found for payment reference:', paymentStatus.reference);
+                }
+            } else {
+                logger.error('❌ Payment verification failed:', paymentStatus.error);
+                
+                // Find user and update payment session to failed
+                const user = await User.findOne({ 
+                    'paymentSession.reference': body.reference 
+                });
+                
+                if (user) {
+                    user.paymentSession.status = 'failed';
+                    user.stage = 'trial'; // Return to trial state
+                    await user.save();
+                    
+                    await messengerService.sendText(user.messengerId,
+                        '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
+                    );
+                }
+            }
+
+            res.status(200).json({ status: 'OK' });
+        } catch (error) {
+            logger.error('❌ Error handling payment callback:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     }
 };
 
@@ -163,17 +227,7 @@ async function processUserMessage(user, messageText) {
                 return;
 
             case 'trial':
-                // Check trial limits
-                if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
-                    await messengerService.sendText(user.messengerId, 
-                        '🛑 You\'ve reached your daily free trial limit (3 messages).\n\n' +
-                        'Subscribe for premium access:\n\n' +
-                        '- 3,000 SSP Weekly: 30 messages/day, standard features\n' +
-                        '- 6,500 SSP Monthly: 30 messages/day, extended features & priority service'
-                    );
-                    await sendSubscriptionOptions(user.messengerId);
-                    return;
-                }
+                // Trial stage - proceed to message processing
                 break;
 
             case 'subscription_active':
@@ -317,6 +371,16 @@ async function handlePostback(user, payload) {
                         'Sorry, there was an error processing your payment request. Please try again in a moment.'
                     );
                 }
+                break;
+
+            case 'RETRY_NUMBER':
+                user.stage = 'awaiting_phone';
+                user.mobileNumber = null;
+                await user.save();
+                await messengerService.sendText(user.messengerId,
+                    'Please enter a different MTN mobile number (e.g., 092xxxxxxx).\n\n' +
+                    'Make sure this number hasn\'t been used for a trial before.'
+                );
                 break;
 
             case 'START_TRIAL':

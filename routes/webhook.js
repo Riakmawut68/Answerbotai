@@ -9,4 +9,7 @@ router.get('/', verifyWebhook, webhookController.verify);
 // Webhook event handling endpoint
 router.post('/', verifyWebhook, webhookController.handleEvent);
 
+// Payment callback endpoint (for MTN MoMo callbacks)
+router.post('/payment-callback', webhookController.handlePaymentCallback);
+
 module.exports = router;

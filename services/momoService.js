@@ -83,9 +83,43 @@ class MomoService {
         }
     }
 
+    async verifyPayment(callbackData) {
+        try {
+            const { reference, status } = callbackData;
+            
+            if (status === 'SUCCESSFUL') {
+                // Find user with this payment reference
+                const User = require('../models/user');
+                const user = await User.findOne({ 'paymentSession.reference': reference });
+                
+                if (!user) {
+                    return { success: false, error: 'User not found for payment reference' };
+                }
+
+                // Calculate expiry date
+                const duration = user.paymentSession.planType === 'weekly' ? 7 : 30;
+                const expiryDate = new Date(Date.now() + (duration * 24 * 60 * 60 * 1000));
+
+                return {
+                    success: true,
+                    reference,
+                    plan: user.paymentSession.planType,
+                    expiryDate,
+                    user: user
+                };
+            } else {
+                return { success: false, error: 'Payment failed' };
+            }
+        } catch (error) {
+            logger.error('Error verifying payment:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
     async handlePaymentCallback(reference, status) {
         try {
             // Find user with this payment reference
+            const User = require('../models/user');
             const user = await User.findOne({ 'paymentSession.reference': reference });
             if (!user) {
                 throw new Error('User not found for payment reference');

@@ -52,7 +52,6 @@ const userSchema = new mongoose.Schema({
     enum: [
       'initial',
       'awaiting_phone',
-      'phone_verified',
       'trial',
       'awaiting_payment',
       'subscription_active',
@@ -71,7 +70,8 @@ const userSchema = new mongoose.Schema({
     planType: String,
     amount: Number,
     startTime: Date,
-    status: String
+    status: String,
+    reference: String
   }
 }, {
   timestamps: true

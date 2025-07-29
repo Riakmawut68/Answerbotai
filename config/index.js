@@ -2,11 +2,18 @@ require('dotenv').config();
 
 const config = {
     // Server Configuration
-    port: process.env.PORT || 3000,
-    nodeEnv: process.env.NODE_ENV || 'development',
+    server: {
+        port: process.env.PORT || 3000,
+    },
+    
+    // App Configuration
+    app: {
+        environment: process.env.NODE_ENV || 'development',
+        version: '1.0.0',
+    },
     
     // Database
-    mongodb: {
+    database: {
         uri: process.env.MONGODB_URI,
         options: {
             useNewUrlParser: true,
@@ -43,7 +50,10 @@ const config = {
     // Service Configuration
     service: {
         url: process.env.SELF_URL || 'https://answerbotai.onrender.com',
+        selfUrl: process.env.SELF_URL,
         name: 'Answer Bot AI',
+        pingInterval: 50, // seconds
+        pingTimeout: 10000, // milliseconds
     },
     
     // Rate Limiting
@@ -84,7 +94,7 @@ const config = {
 
 // Validate required configuration
 const requiredFields = [
-    'mongodb.uri',
+    'database.uri',
     'facebook.verifyToken',
     'facebook.pageAccessToken',
     'facebook.appSecret',
