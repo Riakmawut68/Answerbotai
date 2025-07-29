@@ -32,7 +32,13 @@ const userSchema = new mongoose.Schema({
       default: 'none'
     },
     startDate: Date,
-    expiryDate: Date
+    expiryDate: Date,
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'active', 'expired'],
+      default: 'none'
+    },
+    paymentReference: String
   },
   dailyMessageCount: {
     type: Number,
@@ -40,6 +46,32 @@ const userSchema = new mongoose.Schema({
   },
   lastMessageCountResetDate: {
     type: Date
+  },
+  stage: {
+    type: String,
+    enum: [
+      'initial',
+      'awaiting_phone',
+      'phone_verified',
+      'trial',
+      'awaiting_payment',
+      'subscription_active',
+      'subscription_expired'
+    ],
+    default: 'initial'
+  },
+  hasUsedTrial: {
+    type: Boolean,
+    default: false
+  },
+  trialStartDate: {
+    type: Date
+  },
+  paymentSession: {
+    planType: String,
+    amount: Number,
+    startTime: Date,
+    status: String
   }
 }, {
   timestamps: true

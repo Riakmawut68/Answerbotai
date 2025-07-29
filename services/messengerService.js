@@ -47,13 +47,13 @@ class MessengerService {
         });
     }
 
-    // Send the welcome message with terms and consent
     async sendWelcomeMessage(recipientId) {
-        const welcomeText = `👋 Welcome to Answer Bot AI!
+        const welcomeChunk1 = `👋 Welcome to Answer Bot AI!
 
 Your intelligent virtual assistant powered by GPT-4.1 Nano. We're pleased to have you on board.
 
 🤖 What Can I Help With?
+
 Answer Bot AI assists with:
 - 📚 Academics
 - 💼 Business
@@ -61,41 +61,75 @@ Answer Bot AI assists with:
 - 🏥 Health
 - ❓ General knowledge
 
+Whether you're a student, professional, or curious learner, I provide fast, intelligent answers to help you solve problems and learn efficiently.
+
 🆓 Free Trial & Subscription
-- 3 free messages per day to explore Answer Bot AI
-- After that, subscribe for premium access
-- Pricing:
-  • 3,000 SSP/week – 30 messages/day
-  • 6,500 SSP/month – 30 messages/day + extended features
 
-📜 Legal Notice
-Operated by Nyamora Co. Ltd in compliance with Meta's policies, data privacy laws, and mobile money regulations.
+- As a new user, you get 3 free messages every day to explore Answer Bot AI.
+- After your daily limit, you'll be prompted to subscribe for premium access.
+- Please have your MoMo (Mobile Money) number ready and recharged.
+- Pricing:  
+  • 3,000 SSP/week (30 messages per day, standard features)  
+  • 6,500 SSP/month (30 messages per day, extended features & priority service)
 
-🔐 Privacy Policy
-We only store:
-- Your Messenger ID
-- Mobile number (if provided)
-- Message count and subscription status
+📜 Compliance & Legal Responsibility
 
-⚖️ Terms & Conditions
-Use responsibly. AI responses are not professional advice. Hate speech, abuse, or misuse will lead to bans. Subscriptions are non-refundable.
+Nyamora Co.ltd operates Answer Bot AI in full compliance with:
+- Meta's Platform Terms & Developer Policies
+- Data privacy laws & user protection
+- Mobile money transaction guidelines
+- Digital services & e-commerce regulations
+- Meta's community standards
 
-🟢 Consent Required`;
+We do not engage in unauthorized data collection, deceptive practices, or deliver false/harmful information. All AI responses are responsibly generated.
 
-        // Send welcome message in chunks due to Facebook's message length limits
-        const chunks = this.chunkMessage(welcomeText, 2000);
-        for (const chunk of chunks) {
-            await this.sendText(recipientId, chunk);
-        }
+🔐 Data Privacy Policy
 
-        // Send consent button
-        return this.sendButtonTemplate(recipientId, 
-            "By clicking \"I Agree\", you confirm that you've read and accepted our Terms, Privacy Policy, and Subscription Conditions.",
-            [{
+- We collect only essential data (user ID, message count, subscription status).
+- No sensitive personal info is accessed, stored, or shared unless needed for service and with your consent.
+- Data is used only to operate Answer Bot AI.
+- All data is stored securely and never sold or transferred to third parties.
+- You can request data deletion at any time.
+- We use industry-standard encryption and security practices.
+
+⚖ Terms & Conditions
+
+By using Answer Bot AI, you agree to:
+- Use the platform for personal, academic, or professional inquiry only.
+- Understand that all responses are AI-generated and not professional advice.
+- Not send or promote hate speech, abuse, violence, harassment, or misleadin`;
+
+        const welcomeChunk2 = `g content.
+- Misuse or violations may lead to access restrictions or bans.
+- Subscription fees are non-refundable once access is granted.
+- We may update terms, pricing, or features at any time (you'll be notified).
+For help, contact our support team via the app or official channels.
+
+🟢 Consent Required
+
+By tapping "I Agree", you confirm that you have read and accept our Terms, Privacy Policy, and Subscription Conditions. You must agree to use Answer Bot AI.`;
+
+        // Send exactly two chunks
+        await this.sendText(recipientId, welcomeChunk1);
+        await this.sendText(recipientId, welcomeChunk2);
+
+        // Send consent button with trial option
+        const buttons = [
+            {
                 type: 'postback',
                 title: 'I Agree',
                 payload: 'I_AGREE'
-            }]
+            },
+            {
+                type: 'postback',
+                title: 'Start Free Trial',
+                payload: 'START_TRIAL'
+            }
+        ];
+
+        return this.sendButtonTemplate(recipientId,
+            "🟢 By clicking \"I Agree\", you confirm that you've read and accepted our Terms, Privacy Policy, and Subscription Conditions.",
+            buttons
         );
     }
 
