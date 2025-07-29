@@ -1,0 +1,33 @@
+{
+  "name": "messenger-bot-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive test suite for messenger bot",
+  "scripts": {
+    "test": "jest --verbose --detectOpenHandles",
+    "test:unit": "jest tests/unit --verbose",
+    "test:integration": "jest tests/integration --verbose",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:critical": "jest --testNamePattern='CRITICAL' --verbose",
+    "test:bugs": "jest --testNamePattern='🚨' --verbose"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@types/jest": "^29.5.8"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "../**/*.js",
+      "!../node_modules/**",
+      "!../tests/**",
+      "!../logs/**"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/*.(test|spec).js"
+    ],
+    "setupFilesAfterEnv": ["<rootDir>/setup.js"]
+  }
+}
