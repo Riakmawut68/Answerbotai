@@ -1,237 +1,292 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const User = require('../models/user'); // Avoid circular dependencies
 
 class MomoService {
     constructor() {
-        // Use sandbox test credentials if in sandbox environment and credentials are missing
-        const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
-        
-        if (environment === 'sandbox' && !process.env.MOMO_API_USER_ID) {
-            console.log('🔧 Using sandbox test credentials for MTN MoMo API');
-            this.apiUserId = "ba5368da-8ea8-4926-8d51-e549388441f4";
-            this.apiKey = "200621ac8dff419faff263f2f532f60f";
-            this.subscriptionKey = "2e669906cdfd458fb7941e09fed98f38";
-            this.baseUrl = "https://sandbox.momodeveloper.mtn.com";
-            this.externalId = "123456789";
-        } else {
-            this.apiUserId = process.env.MOMO_API_USER_ID;
-            this.apiKey = process.env.MOMO_API_KEY;
-            this.subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
-            this.baseUrl = process.env.MOMO_BASE_URL;
-            this.externalId = process.env.MOMO_EXTERNAL_ID;
-        }
-        
+        this.environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
+        this.validateConfiguration();
+        this.initializeCredentials();
         this.callbackHost = process.env.CALLBACK_HOST;
         
-        // Validate required environment variables
-        this.validateConfiguration();
+        logger.info(`MoMo service initialized in ${this.environment} mode`);
+    }
+
+    initializeCredentials() {
+        this.apiUserId = process.env.MOMO_API_USER_ID;
+        this.apiKey = process.env.MOMO_API_KEY;
+        this.subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
+        this.baseUrl = process.env.MOMO_BASE_URL || 
+            (this.environment === 'sandbox' 
+                ? 'https://sandbox.momodeveloper.mtn.com' 
+                : 'https://api.momoapi.mtn.com');
+        this.externalId = process.env.MOMO_EXTERNAL_ID || '123456789';
+
+        // Mask sensitive keys in logs
+        this.maskedApiKey = this.maskString(this.apiKey);
+        this.maskedSubKey = this.maskString(this.subscriptionKey);
     }
 
     validateConfiguration() {
-        const missingVars = [];
-        
-        if (!this.apiUserId) missingVars.push('MOMO_API_USER_ID');
-        if (!this.apiKey) missingVars.push('MOMO_API_KEY');
-        if (!this.subscriptionKey) missingVars.push('MOMO_SUBSCRIPTION_KEY');
-        if (!this.baseUrl) missingVars.push('MOMO_BASE_URL');
-        if (!this.externalId) missingVars.push('MOMO_EXTERNAL_ID');
-        
-        if (missingVars.length > 0) {
-            logger.error(`Missing required MoMo environment variables: ${missingVars.join(', ')}`);
-            throw new Error(`Missing required MoMo environment variables: ${missingVars.join(', ')}`);
+        const requiredVars = ['MOMO_API_USER_ID', 'MOMO_API_KEY', 'MOMO_SUBSCRIPTION_KEY'];
+        const missingVars = requiredVars.filter(v => !process.env[v]);
+
+        if (missingVars.length > 0 && this.environment !== 'sandbox') {
+            const errorMsg = `Missing required MoMo variables: ${missingVars.join(', ')}`;
+            logger.error(errorMsg);
+            throw new Error(errorMsg);
         }
-        
-        logger.info('MoMo service configuration validated successfully');
+
+        if (this.environment === 'sandbox' && missingVars.length > 0) {
+            logger.warn('Using sandbox mode with incomplete credentials - some operations may fail');
+        }
     }
 
     async initiatePayment(user, planType) {
-        const amount = planType === 'weekly' ? 3000 : 6500;
-        const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+        const amount = this.calculatePlanAmount(planType);
+        const reference = `PAY-${Date.now()}-${user.messengerId.slice(-4)}`;
+        const endpoint = `${this.baseUrl}/collection/v1_0/requesttopay`;
+
         try {
-            // Log request details for debugging
-            logger.info(`Initiating payment for user ${user.messengerId}, plan: ${planType}, amount: ${amount}, reference: ${reference}`);
-            logger.info(`Using baseUrl: ${this.baseUrl}, apiKey length: ${this.apiKey ? this.apiKey.length : 0}, subscriptionKey length: ${this.subscriptionKey ? this.subscriptionKey.length : 0}`);
-            
-            const requestBody = {
-                amount: amount.toString(),
-                currency: "SSP",
-                externalId: this.externalId,
-                payer: {
-                    partyIdType: "MSISDN",
-                    partyId: user.mobileNumber
-                },
-                payerMessage: `Answer Bot AI ${planType} subscription`,
-                payeeNote: `${planType} plan for ${user.messengerId}`
-            };
-            
-            const headers = {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'X-Reference-Id': reference,
-                'X-Target-Environment': process.env.MOMO_ENVIRONMENT || 'sandbox',
-                'Ocp-Apim-Subscription-Key': this.subscriptionKey,
-                'Content-Type': 'application/json'
-            };
-            
-            logger.info(`Making request to: ${this.baseUrl}/collection/v1_0/requesttopay`);
-            logger.info(`Request headers: ${JSON.stringify(headers, null, 2)}`);
-            logger.info(`Request body: ${JSON.stringify(requestBody, null, 2)}`);
-            
-            // Create payment request to MTN MoMo API
-            const response = await axios.post(
-                `${this.baseUrl}/collection/v1_0/requesttopay`,
-                requestBody,
-                { headers }
-            );
+            logger.info(`Initiating ${planType} payment (${amount} SSP) for ${user.mobileNumber}, Ref: ${reference}`);
 
-            logger.info(`Payment initiation successful, response status: ${response.status}`);
+            const requestBody = this.buildRequestBody(user, planType, amount);
+            const headers = this.getRequestHeaders(reference);
 
-            // Update user's payment session
-            user.paymentSession = {
-                planType,
-                amount,
-                startTime: new Date(),
-                status: 'pending',
-                reference
-            };
-            await user.save();
-
-            return {
-                success: true,
-                reference,
-                message: 'Payment initiated successfully'
-            };
-
-        } catch (error) {
-            logger.error('Payment initiation error:', error);
+            const response = await axios.post(endpoint, requestBody, { headers, timeout: 15000 });
             
-            // Log more detailed error information
-            if (error.response) {
-                logger.error(`Response status: ${error.response.status}`);
-                logger.error(`Response data: ${JSON.stringify(error.response.data, null, 2)}`);
-                logger.error(`Response headers: ${JSON.stringify(error.response.headers, null, 2)}`);
-                
-                // Handle sandbox-specific errors
-                const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
-                if (environment === 'sandbox') {
-                    if (error.response.status === 401) {
-                        logger.info('Sandbox mode: 401 Unauthorized is expected behavior for test credentials');
-                        // In sandbox, we can simulate a successful payment initiation for testing
-                        logger.info('Simulating successful payment initiation for sandbox testing');
-                        
-                        // Calculate amount based on plan type
-                        const amount = planType === 'weekly' ? 3000 : 6500;
-                        
-                        // Update user's payment session
-                        user.paymentSession = {
-                            planType,
-                            amount,
-                            startTime: new Date(),
-                            status: 'pending',
-                            reference
-                        };
-                        await user.save();
-                        
-                        return {
-                            success: true,
-                            reference,
-                            message: 'Payment initiated successfully (sandbox simulation)'
-                        };
-                    }
-                }
+            if (response.status >= 200 && response.status < 300) {
+                return await this.handleSuccess(user, planType, amount, reference);
             }
             
-            throw new Error('Failed to initiate payment');
+            throw new Error(`Unexpected status: ${response.status}`);
+        } catch (error) {
+            return this.handlePaymentError(error, user, planType, amount, reference);
         }
     }
 
     async checkPaymentStatus(reference) {
+        const endpoint = `${this.baseUrl}/collection/v1_0/requesttopay/${reference}`;
+        
         try {
-            const response = await axios.get(
-                `${this.baseUrl}/collection/v1_0/requesttopay/${reference}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'X-Target-Environment': process.env.MOMO_ENVIRONMENT,
-                        'Ocp-Apim-Subscription-Key': this.subscriptionKey
-                    }
-                }
-            );
+            const headers = {
+                'Authorization': `Bearer ${this.apiKey}`,
+                'X-Target-Environment': this.environment,
+                'Ocp-Apim-Subscription-Key': this.subscriptionKey
+            };
 
-            return response.data.status;
+            const response = await axios.get(endpoint, { headers, timeout: 10000 });
+            return response.data;
         } catch (error) {
-            logger.error('Error checking payment status:', error);
-            throw new Error('Failed to check payment status');
+            logger.error('Payment status check failed', {
+                reference,
+                error: error.message,
+                environment: this.environment
+            });
+            throw error;
         }
     }
 
-    async verifyPayment(callbackData) {
+    async verifyPayment(reference) {
         try {
-            const { reference, status } = callbackData;
+            const status = await this.checkPaymentStatus(reference);
             
-            if (status === 'SUCCESSFUL') {
-                // Find user with this payment reference
-                const User = require('../models/user');
-                const user = await User.findOne({ 'paymentSession.reference': reference });
-                
-                if (!user) {
-                    return { success: false, error: 'User not found for payment reference' };
-                }
-
-                // Calculate expiry date
-                const duration = user.paymentSession.planType === 'weekly' ? 7 : 30;
-                const expiryDate = new Date(Date.now() + (duration * 24 * 60 * 60 * 1000));
-
-                return {
-                    success: true,
-                    reference,
-                    plan: user.paymentSession.planType,
-                    expiryDate,
-                    user: user
-                };
+            if (status.status === 'SUCCESSFUL') {
+                logger.info(`Payment verified successfully for reference: ${reference}`);
+                return { success: true, status: status.status };
+            } else if (status.status === 'FAILED') {
+                logger.warn(`Payment failed for reference: ${reference}`);
+                return { success: false, status: status.status };
             } else {
-                return { success: false, error: 'Payment failed' };
+                logger.info(`Payment still pending for reference: ${reference}, status: ${status.status}`);
+                return { success: false, status: status.status, pending: true };
             }
         } catch (error) {
-            logger.error('Error verifying payment:', error);
-            return { success: false, error: error.message };
+            logger.error('Payment verification failed', { reference, error: error.message });
+            throw error;
         }
     }
 
-    async handlePaymentCallback(reference, status) {
+    async handlePaymentCallback(callbackData) {
         try {
-            // Find user with this payment reference
-            const User = require('../models/user');
-            const user = await User.findOne({ 'paymentSession.reference': reference });
+            logger.info('Processing payment callback', {
+                reference: callbackData.reference,
+                status: callbackData.status,
+                environment: this.environment
+            });
+
+            // Validate callback data
+            if (!callbackData.reference || !callbackData.status) {
+                throw new Error('Invalid callback data: missing reference or status');
+            }
+
+            // Find user by payment reference
+            const user = await User.findOne({
+                'paymentSession.reference': callbackData.reference
+            });
+
             if (!user) {
+                logger.error('User not found for payment callback', { reference: callbackData.reference });
                 throw new Error('User not found for payment reference');
             }
 
-            if (status === 'SUCCESSFUL') {
-                // Update user subscription
-                const duration = user.paymentSession.planType === 'weekly' ? 7 : 30;
-                user.subscription = {
-                    plan: user.paymentSession.planType,
-                    startDate: new Date(),
-                    expiryDate: new Date(Date.now() + (duration * 24 * 60 * 60 * 1000)),
-                    status: 'active',
-                    paymentReference: reference
-                };
-                user.stage = 'subscription_active';
-                user.dailyMessageCount = 0;
-                user.paymentSession = null;
-            } else {
-                user.paymentSession.status = 'failed';
+            // Update payment status
+            if (user.paymentSession) {
+                user.paymentSession.status = callbackData.status;
+                user.paymentSession.processedAt = new Date();
+            }
+
+            // Handle successful payment
+            if (callbackData.status === 'SUCCESSFUL') {
+                await this.processSuccessfulPayment(user);
+            } else if (callbackData.status === 'FAILED') {
+                await this.processFailedPayment(user);
             }
 
             await user.save();
-            return user;
+            
+            logger.info('Payment callback processed successfully', {
+                user: user.messengerId,
+                reference: callbackData.reference,
+                status: callbackData.status
+            });
 
+            return { success: true };
         } catch (error) {
-            logger.error('Error handling payment callback:', error);
-            throw new Error('Failed to process payment callback');
+            logger.error('Payment callback processing failed', {
+                error: error.message,
+                callbackData
+            });
+            throw error;
         }
+    }
+
+    async processSuccessfulPayment(user) {
+        const { planType, amount } = user.paymentSession;
+        
+        // Update subscription
+        const duration = planType === 'weekly' ? 7 : 30;
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + duration);
+
+        user.subscription = {
+            planType,
+            amount,
+            startDate: new Date(),
+            expiryDate,
+            status: 'active'
+        };
+
+        // Clear payment session
+        user.paymentSession = null;
+        user.stage = 'subscribed';
+
+        logger.info('Subscription activated successfully', {
+            user: user.messengerId,
+            planType,
+            amount,
+            expiryDate
+        });
+    }
+
+    async processFailedPayment(user) {
+        // Clear payment session
+        user.paymentSession = null;
+        user.stage = 'payment_failed';
+
+        logger.info('Payment failed - session cleared', {
+            user: user.messengerId,
+            reference: user.paymentSession?.reference
+        });
+    }
+
+    // ============ HELPER METHODS =============
+    calculatePlanAmount(planType) {
+        const plans = {
+            weekly: 3000,
+            monthly: 6500
+        };
+        if (!plans[planType]) throw new Error(`Invalid plan type: ${planType}`);
+        return plans[planType];
+    }
+
+    buildRequestBody(user, planType, amount) {
+        return {
+            amount: amount.toString(),
+            currency: "SSP",
+            externalId: this.externalId,
+            payer: {
+                partyIdType: "MSISDN",
+                partyId: user.mobileNumber
+            },
+            payerMessage: `Answer Bot AI ${planType} subscription`,
+            payeeNote: `${planType} plan for ${user.messengerId}`,
+            callbackUrl: this.callbackHost ? `${this.callbackHost}/momo/callback` : undefined
+        };
+    }
+
+    getRequestHeaders(reference) {
+        return {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'X-Reference-Id': reference,
+            'X-Target-Environment': this.environment,
+            'Ocp-Apim-Subscription-Key': this.subscriptionKey,
+            'Content-Type': 'application/json',
+            'X-Callback-Url': this.callbackHost ? `${this.callbackHost}/momo/callback` : undefined
+        };
+    }
+
+    async handleSuccess(user, planType, amount, reference) {
+        user.paymentSession = {
+            planType,
+            amount,
+            startTime: new Date(),
+            status: 'pending',
+            reference
+        };
+        await user.save();
+
+        logger.info(`Payment initiated successfully for ${user.messengerId}, Ref: ${reference}`);
+        return { success: true, reference };
+    }
+
+    handlePaymentError(error, user, planType, amount, reference) {
+        const errorContext = {
+            reference,
+            user: user.messengerId,
+            planType,
+            environment: this.environment
+        };
+
+        logger.error('Payment initiation failed', {
+            message: error.message,
+            ...errorContext
+        });
+
+        // Sandbox simulation
+        if (this.environment === 'sandbox' && error.response?.status === 401) {
+            logger.warn('Sandbox 401 error detected - simulating success');
+            return this.handleSuccess(user, planType, amount, reference);
+        }
+
+        // Detailed error diagnostics
+        if (error.response) {
+            logger.error('API Error Response:', {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            });
+        } else if (error.request) {
+            logger.error('No response received', error.request);
+        }
+
+        throw new Error(`Payment initiation failed: ${error.message}`);
+    }
+
+    maskString(value, visibleChars = 4) {
+        if (!value) return 'null';
+        return value.slice(0, visibleChars) + '*'.repeat(value.length - visibleChars);
     }
 }
 
-module.exports = new MomoService();
+module.exports = MomoService;

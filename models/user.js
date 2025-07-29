@@ -26,11 +26,12 @@ const userSchema = new mongoose.Schema({
     type: Date
   },
   subscription: {
-    plan: {
+    planType: {
       type: String,
       enum: ['none', 'weekly', 'monthly'],
       default: 'none'
     },
+    amount: Number,
     startDate: Date,
     expiryDate: Date,
     status: {
@@ -54,7 +55,8 @@ const userSchema = new mongoose.Schema({
       'awaiting_phone',
       'trial',
       'awaiting_payment',
-      'subscription_active',
+      'subscribed',
+      'payment_failed',
       'subscription_expired'
     ],
     default: 'initial'
@@ -71,7 +73,8 @@ const userSchema = new mongoose.Schema({
     amount: Number,
     startTime: Date,
     status: String,
-    reference: String
+    reference: String,
+    processedAt: Date
   }
 }, {
   timestamps: true

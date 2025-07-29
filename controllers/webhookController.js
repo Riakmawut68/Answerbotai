@@ -3,7 +3,8 @@ const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const messengerService = require('../services/messengerService');
 const aiService = require('../services/aiService');
-const momoService = require('../services/momoService');
+const MomoService = require('../services/momoService');
+const momoService = new MomoService();
 const commandService = require('../services/commandService');
 const Validators = require('../utils/validators');
 const config = require('../config');
@@ -56,28 +57,16 @@ const webhookController = {
             const { body } = req;
             logger.info('💰 Payment callback received:', body);
 
-            // Verify payment status
-            const paymentStatus = await momoService.verifyPayment(body);
+            // Process the callback using the enhanced MomoService
+            const result = await momoService.handlePaymentCallback(body);
             
-            if (paymentStatus.success) {
-                // Find user by payment reference
+            if (result.success) {
+                // Find user by payment reference to send notification
                 const user = await User.findOne({ 
-                    'paymentSession.reference': paymentStatus.reference 
+                    'paymentSession.reference': body.reference 
                 });
 
-                if (user) {
-                    // Update user subscription
-                    user.stage = 'subscription_active';
-                    user.subscription = {
-                        plan: paymentStatus.plan,
-                        status: 'active',
-                        startDate: new Date(),
-                        expiryDate: paymentStatus.expiryDate,
-                        paymentReference: paymentStatus.reference
-                    };
-                    user.paymentSession = null;
-                    await user.save();
-
+                if (user && body.status === 'SUCCESSFUL') {
                     // Send success message
                     await messengerService.sendText(user.messengerId,
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
@@ -85,25 +74,13 @@ const webhookController = {
                     );
 
                     logger.info(`✅ Payment completed for user ${user.messengerId}`);
-                } else {
-                    logger.error('❌ User not found for payment reference:', paymentStatus.reference);
-                }
-            } else {
-                logger.error('❌ Payment verification failed:', paymentStatus.error);
-                
-                // Find user and update payment session to failed
-                const user = await User.findOne({ 
-                    'paymentSession.reference': body.reference 
-                });
-                
-                if (user) {
-                    user.paymentSession.status = 'failed';
-                    user.stage = 'trial'; // Return to trial state
-                    await user.save();
-                    
+                } else if (user && body.status === 'FAILED') {
+                    // Send failure message
                     await messengerService.sendText(user.messengerId,
                         '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
                     );
+                    
+                    logger.info(`❌ Payment failed for user ${user.messengerId}`);
                 }
             }
 
