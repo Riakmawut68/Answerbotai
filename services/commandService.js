@@ -76,6 +76,7 @@ class CommandService {
 
         // Reset daily usage
         user.trialMessagesUsedToday = 0;
+        user.trialMessagesRemaining = 3;
         user.dailyMessageCount = 0;
         user.lastTrialResetDate = new Date();
         user.lastMessageCountResetDate = new Date();
