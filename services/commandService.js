@@ -74,6 +74,12 @@ class CommandService {
     async handleResetMe(user, messageText) {
         logger.info(`User ${user.messengerId} requested reset`);
 
+        // Fix invalid stage if needed
+        if (user.stage === 'phone_verified') {
+            user.stage = 'trial';
+            logger.info(`Fixed user ${user.messengerId} stage: phone_verified → trial`);
+        }
+
         // Reset daily usage
         user.trialMessagesUsedToday = 0;
         user.dailyMessageCount = 0;
@@ -102,6 +108,12 @@ class CommandService {
     // Handle "cancel" command - Cancel current operation
     async handleCancel(user, messageText) {
         logger.info(`User ${user.messengerId} requested cancellation`);
+
+        // Fix invalid stage if needed
+        if (user.stage === 'phone_verified') {
+            user.stage = 'trial';
+            logger.info(`Fixed user ${user.messengerId} stage: phone_verified → trial`);
+        }
 
         let message = '';
 
@@ -182,6 +194,12 @@ class CommandService {
     // Handle "status" command - Show user status
     async handleStatus(user, messageText) {
         logger.info(`User ${user.messengerId} requested status`);
+
+        // Fix invalid stage if needed
+        if (user.stage === 'phone_verified') {
+            user.stage = 'trial';
+            logger.info(`Fixed user ${user.messengerId} stage: phone_verified → trial`);
+        }
 
         const timezone = require('../utils/timezone');
         const currentTime = timezone.getCurrentTime();
