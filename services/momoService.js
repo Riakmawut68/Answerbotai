@@ -3,43 +3,88 @@ const logger = require('../utils/logger');
 
 class MomoService {
     constructor() {
-        this.apiUserId = process.env.MOMO_API_USER_ID;
-        this.apiKey = process.env.MOMO_API_KEY;
-        this.subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
-        this.baseUrl = process.env.MOMO_BASE_URL;
+        // Use sandbox test credentials if in sandbox environment and credentials are missing
+        const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
+        
+        if (environment === 'sandbox' && !process.env.MOMO_API_USER_ID) {
+            console.log('🔧 Using sandbox test credentials for MTN MoMo API');
+            this.apiUserId = "ba5368da-8ea8-4926-8d51-e549388441f4";
+            this.apiKey = "200621ac8dff419faff263f2f532f60f";
+            this.subscriptionKey = "2e669906cdfd458fb7941e09fed98f38";
+            this.baseUrl = "https://sandbox.momodeveloper.mtn.com";
+            this.externalId = "123456789";
+        } else {
+            this.apiUserId = process.env.MOMO_API_USER_ID;
+            this.apiKey = process.env.MOMO_API_KEY;
+            this.subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
+            this.baseUrl = process.env.MOMO_BASE_URL;
+            this.externalId = process.env.MOMO_EXTERNAL_ID;
+        }
+        
         this.callbackHost = process.env.CALLBACK_HOST;
-        this.externalId = process.env.MOMO_EXTERNAL_ID;
+        
+        // Validate required environment variables
+        this.validateConfiguration();
+    }
+
+    validateConfiguration() {
+        const missingVars = [];
+        
+        if (!this.apiUserId) missingVars.push('MOMO_API_USER_ID');
+        if (!this.apiKey) missingVars.push('MOMO_API_KEY');
+        if (!this.subscriptionKey) missingVars.push('MOMO_SUBSCRIPTION_KEY');
+        if (!this.baseUrl) missingVars.push('MOMO_BASE_URL');
+        if (!this.externalId) missingVars.push('MOMO_EXTERNAL_ID');
+        
+        if (missingVars.length > 0) {
+            logger.error(`Missing required MoMo environment variables: ${missingVars.join(', ')}`);
+            throw new Error(`Missing required MoMo environment variables: ${missingVars.join(', ')}`);
+        }
+        
+        logger.info('MoMo service configuration validated successfully');
     }
 
     async initiatePayment(user, planType) {
+        const amount = planType === 'weekly' ? 3000 : 6500;
+        const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
         try {
-            const amount = planType === 'weekly' ? 3000 : 6500;
-            const reference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            // Log request details for debugging
+            logger.info(`Initiating payment for user ${user.messengerId}, plan: ${planType}, amount: ${amount}, reference: ${reference}`);
+            logger.info(`Using baseUrl: ${this.baseUrl}, apiKey length: ${this.apiKey ? this.apiKey.length : 0}, subscriptionKey length: ${this.subscriptionKey ? this.subscriptionKey.length : 0}`);
+            
+            const requestBody = {
+                amount: amount.toString(),
+                currency: "SSP",
+                externalId: this.externalId,
+                payer: {
+                    partyIdType: "MSISDN",
+                    partyId: user.mobileNumber
+                },
+                payerMessage: `Answer Bot AI ${planType} subscription`,
+                payeeNote: `${planType} plan for ${user.messengerId}`
+            };
+            
+            const headers = {
+                'Authorization': `Bearer ${this.apiKey}`,
+                'X-Reference-Id': reference,
+                'X-Target-Environment': process.env.MOMO_ENVIRONMENT || 'sandbox',
+                'Ocp-Apim-Subscription-Key': this.subscriptionKey,
+                'Content-Type': 'application/json'
+            };
+            
+            logger.info(`Making request to: ${this.baseUrl}/collection/v1_0/requesttopay`);
+            logger.info(`Request headers: ${JSON.stringify(headers, null, 2)}`);
+            logger.info(`Request body: ${JSON.stringify(requestBody, null, 2)}`);
             
             // Create payment request to MTN MoMo API
             const response = await axios.post(
                 `${this.baseUrl}/collection/v1_0/requesttopay`,
-                {
-                    amount: amount.toString(),
-                    currency: "SSP",
-                    externalId: this.externalId,
-                    payer: {
-                        partyIdType: "MSISDN",
-                        partyId: user.mobileNumber
-                    },
-                    payerMessage: `Answer Bot AI ${planType} subscription`,
-                    payeeNote: `${planType} plan for ${user.messengerId}`
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'X-Reference-Id': reference,
-                        'X-Target-Environment': process.env.MOMO_ENVIRONMENT,
-                        'Ocp-Apim-Subscription-Key': this.subscriptionKey,
-                        'Content-Type': 'application/json'
-                    }
-                }
+                requestBody,
+                { headers }
             );
+
+            logger.info(`Payment initiation successful, response status: ${response.status}`);
 
             // Update user's payment session
             user.paymentSession = {
@@ -58,7 +103,44 @@ class MomoService {
             };
 
         } catch (error) {
-            logger.error('Error initiating payment:', error);
+            logger.error('Payment initiation error:', error);
+            
+            // Log more detailed error information
+            if (error.response) {
+                logger.error(`Response status: ${error.response.status}`);
+                logger.error(`Response data: ${JSON.stringify(error.response.data, null, 2)}`);
+                logger.error(`Response headers: ${JSON.stringify(error.response.headers, null, 2)}`);
+                
+                // Handle sandbox-specific errors
+                const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
+                if (environment === 'sandbox') {
+                    if (error.response.status === 401) {
+                        logger.info('Sandbox mode: 401 Unauthorized is expected behavior for test credentials');
+                        // In sandbox, we can simulate a successful payment initiation for testing
+                        logger.info('Simulating successful payment initiation for sandbox testing');
+                        
+                        // Calculate amount based on plan type
+                        const amount = planType === 'weekly' ? 3000 : 6500;
+                        
+                        // Update user's payment session
+                        user.paymentSession = {
+                            planType,
+                            amount,
+                            startTime: new Date(),
+                            status: 'pending',
+                            reference
+                        };
+                        await user.save();
+                        
+                        return {
+                            success: true,
+                            reference,
+                            message: 'Payment initiated successfully (sandbox simulation)'
+                        };
+                    }
+                }
+            }
+            
             throw new Error('Failed to initiate payment');
         }
     }

@@ -443,9 +443,28 @@ async function handlePostback(user, payload) {
                     }
                 } catch (error) {
                     logger.error('Payment initiation error:', error);
-                    await messengerService.sendText(user.messengerId,
-                        'Sorry, there was an error processing your payment request. Please try again in a moment.'
-                    );
+                    
+                    // Provide more specific error messages based on the error type
+                    let errorMessage = 'Sorry, there was an error processing your payment request. Please try again in a moment.';
+                    
+                    if (error.message.includes('Missing required MoMo environment variables')) {
+                        errorMessage = 'Payment service is currently unavailable. Please try again later or contact support.';
+                        logger.error('MoMo configuration error - missing environment variables');
+                    } else if (error.response && error.response.status === 401) {
+                        const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
+                        if (environment === 'sandbox') {
+                            errorMessage = 'Payment service is in testing mode. Please try again in a few minutes.';
+                            logger.info('Sandbox mode: 401 error is expected for test credentials');
+                        } else {
+                            errorMessage = 'Payment authentication failed. Please try again in a few minutes.';
+                            logger.error('MoMo API authentication failed');
+                        }
+                    } else if (error.response && error.response.status === 400) {
+                        errorMessage = 'Invalid payment request. Please check your mobile number and try again.';
+                        logger.error('MoMo API bad request');
+                    }
+                    
+                    await messengerService.sendText(user.messengerId, errorMessage);
                 }
                 break;
 

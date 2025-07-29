@@ -31,6 +31,14 @@ services:
         sync: false
       - key: MOMO_SUBSCRIPTION_KEY
         sync: false
+      - key: MOMO_BASE_URL
+        sync: false
+      - key: MOMO_EXTERNAL_ID
+        sync: false
+      - key: MOMO_ENVIRONMENT
+        sync: false
+      - key: CALLBACK_HOST
+        sync: false
       - key: ENCRYPTION_KEY
         sync: false
       - key: SELF_URL
