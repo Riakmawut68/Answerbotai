@@ -39,9 +39,11 @@ app.listen(PORT, () => {
   
   // Start self-ping service if SELF_URL is configured
   if (process.env.SELF_URL) {
+    logger.info(`SELF_URL configured: ${process.env.SELF_URL}`);
     startSelfPing();
   } else {
     logger.warn('SELF_URL not configured - self-ping disabled');
+    logger.info('To enable self-ping, set SELF_URL environment variable to your service URL');
   }
 });
 
@@ -52,16 +54,22 @@ function startSelfPing() {
   
   logger.info(`Starting self-ping service to: ${pingUrl}`);
   
-  setInterval(async () => {
+  // Send initial ping immediately
+  sendPing();
+  
+  // Then set up interval
+  setInterval(sendPing, 50000); // Ping every 50 seconds
+  
+  async function sendPing() {
     try {
       const response = await axios.get(pingUrl, { timeout: 10000 });
       if (response.status === 200) {
-        logger.info('Self-ping successful');
+        logger.info(`Self-ping successful - Status: ${response.status}, Uptime: ${response.data.uptime}s`);
       } else {
         logger.warn(`Self-ping failed with status: ${response.status}`);
       }
     } catch (error) {
-      logger.error('Self-ping failed:', error.message);
+      logger.error(`Self-ping failed: ${error.message}`);
     }
-  }, 50000); // Ping every 50 seconds
+  }
 }
