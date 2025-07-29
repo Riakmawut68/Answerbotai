@@ -17,8 +17,8 @@ class AIService {
                         ...context,
                         { role: 'user', content: userMessage }
                     ],
-                    model: 'openai/gpt-3.5-turbo', // You can change this to other models
-                    max_tokens: 500
+                    model: 'mistralai/mistral-nemo:free', // Using Mistral AI's free model
+                    max_tokens: 800
                 },
                 {
                     headers: {
