@@ -8,6 +8,7 @@ const momoService = new MomoService();
 const commandService = require('../services/commandService');
 const Validators = require('../utils/validators');
 const config = require('../config');
+const paymentTimeoutService = require('../services/paymentTimeoutService');
 
 const webhookController = {
     // Verify webhook for Facebook
@@ -151,122 +152,96 @@ async function processUserMessage(user, messageText) {
         logger.info(`🔄 Processing user stage: ${user.stage}`);
         switch(user.stage) {
             case 'awaiting_phone':
-                if (Validators.isValidMobileNumber(messageText)) {
-                    // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: messageText });
-                    if (existingUser && existingUser.hasUsedTrial) {
-                        await messengerService.sendText(user.messengerId, 
-                            '⚠️ This MTN number has already been used for a free trial.\n\n' +
-                            'Please try a different number or subscribe to unlock full access.'
-                        );
-                        const buttons = [
-                            {
-                                type: 'postback',
-                                title: 'Try Different Number',
-                                payload: 'RETRY_NUMBER'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Weekly Plan 3,000 SSP',
-                                payload: 'SUBSCRIBE_WEEKLY'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Monthly Plan 6,500 SSP',
-                                payload: 'SUBSCRIBE_MONTHLY'
-                            }
-                        ];
-                        await messengerService.sendButtonTemplate(user.messengerId, 
-                            'Choose an option to continue:', 
-                            buttons
-                        );
-                    } else {
-                        user.mobileNumber = messageText;
-                        user.stage = 'trial';
-                        user.hasUsedTrial = true;
-                        user.trialStartDate = new Date();
-                        await user.save();
-                        await messengerService.sendText(user.messengerId, 
-                            '✅ Your number has been registered. You can now use your daily free trial of 3 messages.\n\n' +
-                            'Try asking me anything!'
-                        );
-                    }
-                } else {
+                const isValidNumber = await validateMobileNumberForUser(user, messageText);
+                if (isValidNumber) {
+                    user.mobileNumber = messageText;
+                    user.stage = 'trial';
+                    user.hasUsedTrial = true;
+                    user.trialStartDate = new Date();
+                    await user.save();
                     await messengerService.sendText(user.messengerId, 
-                        'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
+                        '✅ Your number has been registered. You can now use your daily free trial of 3 messages.\n\n' +
+                        'Try asking me anything!'
                     );
                 }
                 return;
 
             case 'awaiting_phone_for_payment':
-                if (Validators.isValidMobileNumber(messageText)) {
-                    // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: messageText });
-                    if (existingUser && existingUser.hasUsedTrial) {
-                        await messengerService.sendText(user.messengerId, 
-                            '⚠️ This MTN number has already been used for a free trial.\n\n' +
-                            'Please try a different number or subscribe to unlock full access.'
-                        );
-                        const buttons = [
-                            {
-                                type: 'postback',
-                                title: 'Try Different Number',
-                                payload: 'RETRY_NUMBER'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Weekly Plan 3,000 SSP',
-                                payload: 'SUBSCRIBE_WEEKLY'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Monthly Plan 6,500 SSP',
-                                payload: 'SUBSCRIBE_MONTHLY'
-                            }
-                        ];
-                        await messengerService.sendButtonTemplate(user.messengerId, 
-                            'Choose an option to continue:', 
-                            buttons
-                        );
-                    } else {
-                        user.mobileNumber = messageText;
-                        await user.save();
-                        // Send payment processing message immediately
+                const isValidPaymentNumber = await validateMobileNumberForUser(user, messageText);
+                if (isValidPaymentNumber) {
+                    user.mobileNumber = messageText;
+                    await user.save();
+                    // Send payment processing message immediately
+                    await messengerService.sendText(user.messengerId,
+                        '⏳ Your payment is being processed.\n\n' +
+                        'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                        'Type "cancel" to cancel this payment.'
+                    );
+                    // Check if user has selected a plan
+                    if (!user.lastSelectedPlanType) {
                         await messengerService.sendText(user.messengerId,
-                            '⏳ Your payment is being processed.\n\n' +
-                            'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                            'Type "cancel" to cancel this payment.'
+                            'Please select a subscription plan first:'
                         );
-                        // Initiate payment (default to last selected plan, or ask user to select again if not tracked)
-                        // For simplicity, default to weekly plan if not tracked
-                        let planType = user.lastSelectedPlanType || 'weekly';
-                        try {
-                            const paymentResult = await momoService.initiatePayment(user, planType);
-                            if (paymentResult.success) {
-                                user.stage = 'awaiting_payment';
-                                await user.save();
-                            } else {
-                                await messengerService.sendText(user.messengerId,
-                                    'Sorry, there was an error processing your payment request. Please try again in a moment.'
-                                );
-                            }
-                        } catch (error) {
-                            logger.error('Payment initiation error:', error);
+                        await sendSubscriptionOptions(user.messengerId);
+                        return;
+                    }
+                    let planType = user.lastSelectedPlanType;
+                    try {
+                        const paymentResult = await momoService.initiatePayment(user, planType);
+                        if (paymentResult.success) {
+                            user.stage = 'awaiting_payment';
+                            await user.save();
+                        } else {
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'
                             );
                         }
+                    } catch (error) {
+                        logger.error('Payment initiation error:', error);
+                        await messengerService.sendText(user.messengerId,
+                            'Sorry, there was an error processing your payment request. Please try again in a moment.'
+                        );
                     }
-                } else {
-                    await messengerService.sendText(user.messengerId, 
-                        'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
-                    );
                 }
                 return;
 
             case 'awaiting_payment':
-                // User is in payment flow, ignore text messages
-                await messengerService.sendText(user.messengerId, 'Please complete your payment to continue.');
+                const lowerText = messageText.toLowerCase().trim();
+                
+                if (lowerText === 'cancel' || lowerText === 'stop') {
+                    // User wants to cancel payment
+                    paymentTimeoutService.clearPaymentTimeout(user.messengerId);
+                    user.stage = 'trial';
+                    user.paymentSession = null;
+                    await user.save();
+                    
+                    await messengerService.sendText(user.messengerId,
+                        '✅ Payment cancelled. You can continue using your trial messages or try subscribing again later.'
+                    );
+                    return;
+                }
+                
+                if (lowerText === 'status' || lowerText === 'check') {
+                    // Show payment status
+                    const timeoutStatus = paymentTimeoutService.getTimeoutStatus(user.messengerId);
+                    if (timeoutStatus) {
+                        await messengerService.sendText(user.messengerId,
+                            `⏱️ Payment Status:\n\n` +
+                            `Plan: ${timeoutStatus.planType} (${timeoutStatus.amount} SSP)\n` +
+                            `Time remaining: ${timeoutStatus.remainingMinutes} minutes\n\n` +
+                            `Please complete the payment on your phone or type "cancel" to cancel.`
+                        );
+                    }
+                    return;
+                }
+                
+                // Default message for users in payment state
+                await messengerService.sendText(user.messengerId, 
+                    'Please complete your payment to continue.\n\n' +
+                    'Commands:\n' +
+                    '• Type "status" to check payment status\n' +
+                    '• Type "cancel" to cancel payment'
+                );
                 return;
 
             case 'trial':
@@ -480,6 +455,48 @@ async function handlePostback(user, payload) {
 // Send welcome message
 async function sendWelcomeMessage(userId) {
     await messengerService.sendWelcomeMessage(userId);
+}
+
+// Consolidated mobile number validation function
+async function validateMobileNumberForUser(user, mobileNumber) {
+    if (!Validators.isValidMobileNumber(mobileNumber)) {
+        await messengerService.sendText(user.messengerId, 
+            'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
+        );
+        return false;
+    }
+
+    const existingUser = await User.findOne({ mobileNumber });
+    if (existingUser && existingUser.hasUsedTrial) {
+        await messengerService.sendText(user.messengerId, 
+            '⚠️ This MTN number has already been used for a free trial.\n\n' +
+            'Please try a different number or subscribe to unlock full access.'
+        );
+        const buttons = [
+            {
+                type: 'postback',
+                title: 'Try Different Number',
+                payload: 'RETRY_NUMBER'
+            },
+            {
+                type: 'postback',
+                title: 'Weekly Plan 3,000 SSP',
+                payload: 'SUBSCRIBE_WEEKLY'
+            },
+            {
+                type: 'postback',
+                title: 'Monthly Plan 6,500 SSP',
+                payload: 'SUBSCRIBE_MONTHLY'
+            }
+        ];
+        await messengerService.sendButtonTemplate(user.messengerId, 
+            'Choose an option to continue:', 
+            buttons
+        );
+        return false;
+    }
+
+    return true;
 }
 
 module.exports = webhookController;

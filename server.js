@@ -14,6 +14,7 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 // Import schedulers
 const dailyResetScheduler = require('./schedulers/dailyReset');
 const subscriptionCheckerScheduler = require('./schedulers/subscriptionChecker');
+const paymentRecoveryScheduler = require('./schedulers/paymentRecovery');
 
 const app = express();
 
@@ -86,6 +87,7 @@ app.listen(PORT, () => {
     logger.info('🕐 Starting scheduled tasks...');
     dailyResetScheduler.start();
     subscriptionCheckerScheduler.start();
+    paymentRecoveryScheduler.start();
     logger.info('✅ Scheduled tasks started successfully');
     
     // Start self-ping service if SELF_URL is configured
@@ -159,6 +161,7 @@ process.on('SIGTERM', () => {
     logger.info('🛑 SIGTERM received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
+    paymentRecoveryScheduler.stop();
     mongoose.connection.close(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);
@@ -169,6 +172,7 @@ process.on('SIGINT', () => {
     logger.info('🛑 SIGINT received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
+    paymentRecoveryScheduler.stop();
     mongoose.connection.close(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);

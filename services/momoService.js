@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 const User = require('../models/user'); // Avoid circular dependencies
+const paymentTimeoutService = require('./paymentTimeoutService');
 
 class MomoService {
     constructor() {
@@ -164,6 +165,9 @@ class MomoService {
     async processSuccessfulPayment(user) {
         const { planType, amount } = user.paymentSession;
         
+        // Clear payment timeout since payment is successful
+        paymentTimeoutService.clearPaymentTimeout(user.messengerId);
+        
         // Update subscription
         const duration = planType === 'weekly' ? 7 : 30;
         const expiryDate = new Date();
@@ -177,9 +181,9 @@ class MomoService {
             status: 'active'
         };
 
-        // Clear payment session
+        // Clear payment session and set correct stage
         user.paymentSession = null;
-        user.stage = 'subscribed';
+        user.stage = 'subscription_active';
 
         logger.info('Subscription activated successfully', {
             user: user.messengerId,
@@ -190,6 +194,9 @@ class MomoService {
     }
 
     async processFailedPayment(user) {
+        // Clear payment timeout since payment failed
+        paymentTimeoutService.clearPaymentTimeout(user.messengerId);
+        
         // Clear payment session
         user.paymentSession = null;
         user.stage = 'payment_failed';
@@ -245,6 +252,9 @@ class MomoService {
             reference
         };
         await user.save();
+
+        // Start payment timeout
+        paymentTimeoutService.startPaymentTimeout(user);
 
         logger.info(`Payment initiated successfully for ${user.messengerId}, Ref: ${reference}`);
         return { success: true, reference };

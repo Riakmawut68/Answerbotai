@@ -53,8 +53,10 @@ const userSchema = new mongoose.Schema({
     enum: [
       'initial',
       'awaiting_phone',
+      'awaiting_phone_for_payment',
       'trial',
       'awaiting_payment',
+      'subscription_active',
       'subscribed',
       'payment_failed',
       'subscription_expired'
@@ -67,6 +69,10 @@ const userSchema = new mongoose.Schema({
   },
   trialStartDate: {
     type: Date
+  },
+  lastSelectedPlanType: {
+    type: String,
+    enum: ['weekly', 'monthly']
   },
   paymentSession: {
     planType: String,
