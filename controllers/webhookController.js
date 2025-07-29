@@ -67,6 +67,7 @@ async function handleMessage(event) {
         // Handle message events
         if (event.message && event.message.text) {
             const messageText = event.message.text;
+            logger.info(`📝 User message: "${messageText}" | Stage: ${user.stage} | Trial messages: ${user.trialMessagesUsedToday}/${user.trialMessagesRemaining || 0}`);
             await processUserMessage(user, messageText);
         }
 
@@ -85,11 +86,12 @@ async function processUserMessage(user, messageText) {
     try {
         // Check user consent
         if (!user.consentTimestamp) {
-            // User hasn't given consent yet
+            logger.info(`❌ User ${user.messengerId} hasn't given consent yet`);
             return;
         }
 
         // Handle different stages of user flow
+        logger.info(`🔄 Processing user stage: ${user.stage}`);
         switch(user.stage) {
             case 'awaiting_phone':
                 if (messageText.match(/^092\d{7}$/)) {
@@ -172,23 +174,30 @@ async function processUserMessage(user, messageText) {
         }
 
         // Check message limits
+        logger.info(`📊 Message limits check - Plan: ${user.subscription.plan}, Trial used: ${user.trialMessagesUsedToday}, Daily count: ${user.dailyMessageCount}`);
+        
         if (user.subscription.plan === 'none') {
             // Free trial logic
             if (user.trialMessagesUsedToday >= 3) {
+                logger.info(`🛑 User ${user.messengerId} reached trial limit (3 messages)`);
                 // Send subscription prompt
                 return;
             }
             user.trialMessagesUsedToday += 1;
+            logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/3`);
         } else {
             // Paid subscription logic
             if (user.dailyMessageCount >= 30) {
+                logger.info(`🛑 User ${user.messengerId} reached daily limit (30 messages)`);
                 // Send daily limit reached message
                 return;
             }
             user.dailyMessageCount += 1;
+            logger.info(`✅ Daily message count updated: ${user.dailyMessageCount}/30`);
         }
 
         await user.save();
+        logger.info(`🚀 Proceeding to AI response generation`);
 
         try {
             // Generate AI response directly without content filtering
