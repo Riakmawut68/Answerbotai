@@ -9,6 +9,8 @@ class AIService {
 
     async generateResponse(userMessage, context = []) {
         try {
+            logger.info(`Generating AI response for message: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`);
+            
             const response = await axios.post(
                 this.apiUrl,
                 {
@@ -29,9 +31,12 @@ class AIService {
                 }
             );
 
-            return response.data.choices[0].message.content.trim();
+            const aiResponse = response.data.choices[0].message.content.trim();
+            logger.info(`AI response generated successfully: "${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}"`);
+            
+            return aiResponse;
         } catch (error) {
-            logger.error('Error generating AI response:', error);
+            logger.error('Error generating AI response:', error.response?.data || error.message);
             throw new Error('Failed to generate AI response');
         }
     }
@@ -39,13 +44,30 @@ class AIService {
     // Function to determine if message contains inappropriate content
     async isAppropriateContent(message) {
         try {
+            // Simple greetings and common phrases should always be allowed
+            const allowedPhrases = [
+                'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+                'how are you', 'what\'s up', 'thanks', 'thank you', 'bye', 'goodbye',
+                'help', 'start', 'begin', 'test', 'hello there', 'hi there'
+            ];
+            
+            const lowerMessage = message.toLowerCase().trim();
+            
+            // Check if it's a simple greeting or common phrase
+            if (allowedPhrases.includes(lowerMessage)) {
+                return true;
+            }
+            
+            // For other messages, use AI to check appropriateness
             const response = await this.generateResponse(
-                `Please analyze if this message contains any inappropriate, harmful, or offensive content. Respond with only "true" if it's appropriate or "false" if it's inappropriate: "${message}"`
+                `Analyze this message for inappropriate content. Consider it appropriate if it's a normal question, greeting, or request for help. Only flag as inappropriate if it contains hate speech, violence, harassment, or explicit content. Message: "${message}". Respond with only "APPROPRIATE" or "INAPPROPRIATE".`
             );
-            return response.toLowerCase().includes('true');
+            
+            return response.toLowerCase().includes('appropriate') && !response.toLowerCase().includes('inappropriate');
         } catch (error) {
             logger.error('Error checking content appropriateness:', error);
-            return false;
+            // Default to allowing content if check fails
+            return true;
         }
     }
 

@@ -184,15 +184,7 @@ async function processUserMessage(user, messageText) {
         await user.save();
 
         try {
-            // Check if content is appropriate
-            const isAppropriate = await aiService.isAppropriateContent(messageText);
-            if (!isAppropriate) {
-                await messengerService.sendText(user.messengerId, 
-                    "I apologize, but I cannot process that request as it may contain inappropriate content. Please ensure your message follows our content guidelines.");
-                return;
-            }
-
-            // Generate AI response
+            // Generate AI response directly without content filtering
             const aiResponse = await aiService.getFormattedResponse(messageText);
             await messengerService.sendText(user.messengerId, aiResponse);
         } catch (error) {
