@@ -38,8 +38,14 @@ class AIService {
             
             return aiResponse;
         } catch (error) {
-            logger.error('Error generating AI response:', error.message);
-            throw new Error('Failed to generate AI response');
+            logger.error('Error generating AI response:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                code: error.code
+            });
+            throw new Error(`Failed to generate AI response: ${error.message}`);
         }
     }
 
