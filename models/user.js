@@ -57,7 +57,6 @@ const userSchema = new mongoose.Schema({
       'trial',
       'awaiting_payment',
       'subscription_active',
-      'subscribed',
       'payment_failed',
       'subscription_expired'
     ],
