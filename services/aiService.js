@@ -3,30 +3,51 @@ const logger = require('../utils/logger');
 
 class AIService {
     constructor() {
-        this.apiKey = process.env.OPENAI_API_KEY;
+        this.apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY; // Support both for backward compatibility
+        if (!this.apiKey) {
+            throw new Error('Missing OPENROUTER_API_KEY or OPENAI_API_KEY environment variable');
+        }
+        
         this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+        this.model = process.env.AI_MODEL || "mistralai/mistral-nemo:free";
+        this.defaultSystemPrompt = process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.';
     }
 
     async generateResponse(userMessage, context = []) {
         try {
-            logger.info(`Generating AI response for message: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`);
+            // Basic input sanitization
+            const sanitizedMessage = userMessage.replace(/[<>"']/g, "").trim();
+            if (!sanitizedMessage) {
+                throw new Error('Empty or invalid message');
+            }
+            
+            logger.info(`Generating AI response for message: "${sanitizedMessage.substring(0, 50)}${sanitizedMessage.length > 50 ? '...' : ''}"`);
+            
+            // Validate context structure
+            if (context && Array.isArray(context)) {
+                context.forEach((msg, index) => {
+                    if (!msg || !['user', 'assistant', 'system'].includes(msg.role)) {
+                        throw new Error(`Invalid context message at index ${index}: missing or invalid role`);
+                    }
+                });
+            }
             
             const response = await axios.post(
                 this.apiUrl,
                 {
-                    model: "mistralai/mistral-nemo:free",
+                    model: this.model,
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.'
+                            content: this.defaultSystemPrompt
                         },
                         ...context,
                         {
                             role: 'user',
-                            content: userMessage
+                            content: sanitizedMessage
                         }
                     ],
-                    max_tokens: 800
+                    max_tokens: Math.min(800, 4096) // Safeguard against exceeding model limits
                 },
                 {
                     headers: {
@@ -43,12 +64,13 @@ class AIService {
             
             return aiResponse;
         } catch (error) {
+            // Secure error logging - don't expose sensitive data
             logger.error('Error generating AI response:', {
                 message: error.message,
                 status: error.response?.status,
                 statusText: error.response?.statusText,
-                data: error.response?.data,
                 code: error.code
+                // Removed data field to avoid logging sensitive API responses
             });
             throw new Error(`Failed to generate AI response: ${error.message}`);
         }
@@ -66,7 +88,12 @@ class AIService {
             general: ''
         };
 
-        const prompt = typePrompts[messageType] || '';
+        // Validate message type
+        if (!(messageType in typePrompts)) {
+            throw new Error(`Invalid message type: ${messageType}. Valid types: ${Object.keys(typePrompts).join(', ')}`);
+        }
+
+        const prompt = typePrompts[messageType];
         return await this.generateResponse(prompt + userMessage);
     }
 }

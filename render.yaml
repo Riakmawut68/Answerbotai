@@ -17,7 +17,13 @@ services:
         sync: false
       - key: FB_APP_SECRET
         sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: SYSTEM_PROMPT
         sync: false
       - key: MOMO_API_USER_ID
         sync: false
