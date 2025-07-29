@@ -24,7 +24,7 @@ const webhookController = {
     handleEvent: async (req, res) => {
         try {
             const { body } = req;
-            
+
             logger.info(`📨 Received webhook event: ${body.object || 'unknown'}`);
             if (body.entry && body.entry.length > 0) {
                 logger.info(`📝 Processing ${body.entry.length} entry/entries`);

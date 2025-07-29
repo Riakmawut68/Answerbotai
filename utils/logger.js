@@ -19,12 +19,12 @@ const logger = winston.createLogger({
 });
 
 // Always add console transport for Render logs
-logger.add(new winston.transports.Console({
+  logger.add(new winston.transports.Console({
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.colorize(),
     winston.format.simple()
   )
-}));
+  }));
 
 module.exports = logger;
