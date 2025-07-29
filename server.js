@@ -24,6 +24,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Test ping endpoint (for manual testing)
+app.get('/ping', (req, res) => {
+  logger.info('🔔 Manual ping received from external request');
+  res.status(200).json({ 
+    message: 'Ping received!',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Routes
 app.use('/webhook', require('./routes/webhook'));
 
@@ -58,24 +68,53 @@ function startSelfPing() {
   const axios = require('axios');
   const pingUrl = `${process.env.SELF_URL}/health`;
   
-  logger.info(`Starting self-ping service to: ${pingUrl}`);
+  logger.info(`🔄 Self-ping service configured for: ${pingUrl}`);
+  logger.info(`⏰ Ping interval: 50 seconds`);
+  
+  let pingCount = 0;
   
   // Send initial ping immediately
   sendPing();
   
   // Then set up interval
-  setInterval(sendPing, 50000); // Ping every 50 seconds
+  const pingInterval = setInterval(sendPing, 50000); // Ping every 50 seconds
   
   async function sendPing() {
+    pingCount++;
+    const startTime = Date.now();
+    
     try {
-      const response = await axios.get(pingUrl, { timeout: 10000 });
+      logger.info(`🔄 Self-ping #${pingCount} starting...`);
+      
+      const response = await axios.get(pingUrl, { 
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'AnswerBotAI-SelfPing/1.0'
+        }
+      });
+      
+      const duration = Date.now() - startTime;
+      
       if (response.status === 200) {
-        logger.info(`Self-ping successful - Status: ${response.status}, Uptime: ${response.data.uptime}s`);
+        logger.info(`✅ Self-ping #${pingCount} successful - Status: ${response.status}, Uptime: ${response.data.uptime}s, Duration: ${duration}ms`);
       } else {
-        logger.warn(`Self-ping failed with status: ${response.status}`);
+        logger.warn(`⚠️ Self-ping #${pingCount} failed with status: ${response.status}, Duration: ${duration}ms`);
       }
     } catch (error) {
-      logger.error(`Self-ping failed: ${error.message}`);
+      const duration = Date.now() - startTime;
+      logger.error(`❌ Self-ping #${pingCount} failed: ${error.message}, Duration: ${duration}ms`);
+      
+      // Log more details for debugging
+      if (error.response) {
+        logger.error(`   Response status: ${error.response.status}`);
+        logger.error(`   Response data: ${JSON.stringify(error.response.data)}`);
+      }
     }
   }
+  
+  // Log the interval ID for debugging
+  logger.info(`🆔 Self-ping interval ID: ${pingInterval}`);
+  
+  // Return the interval ID in case we need to clear it later
+  return pingInterval;
 }
