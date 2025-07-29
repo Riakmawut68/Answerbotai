@@ -114,7 +114,7 @@ class MomoService {
             logger.error('Error verifying payment:', error);
             return { success: false, error: error.message };
         }
-    },
+    }
 
     async handlePaymentCallback(reference, status) {
         try {
