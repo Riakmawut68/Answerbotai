@@ -1,8 +1,12 @@
 const logger = require('../utils/logger');
 const User = require('../models/user');
+const Conversation = require('../models/conversation');
 const messengerService = require('../services/messengerService');
 const aiService = require('../services/aiService');
 const momoService = require('../services/momoService');
+const commandService = require('../services/commandService');
+const Validators = require('../utils/validators');
+const config = require('../config');
 
 const webhookController = {
     // Verify webhook for Facebook
@@ -67,7 +71,7 @@ async function handleMessage(event) {
         // Handle message events
         if (event.message && event.message.text) {
             const messageText = event.message.text;
-            logger.info(`📝 User message: "${messageText}" | Stage: ${user.stage} | Trial messages: ${user.trialMessagesUsedToday}/${user.trialMessagesRemaining || 0}`);
+            logger.info(`📝 User message: "${messageText}" | Stage: ${user.stage} | Trial messages: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
             await processUserMessage(user, messageText);
         }
 
@@ -90,11 +94,23 @@ async function processUserMessage(user, messageText) {
             return;
         }
 
+        // Check for commands first
+        const commandResult = await commandService.processCommand(user, messageText);
+        if (commandResult.isCommand) {
+            if (commandResult.handled) {
+                logger.info(`✅ Command processed successfully for user ${user.messengerId}`);
+                return;
+            } else {
+                logger.warn(`❌ Command processing failed for user ${user.messengerId}`);
+                return;
+            }
+        }
+
         // Handle different stages of user flow
         logger.info(`🔄 Processing user stage: ${user.stage}`);
         switch(user.stage) {
             case 'awaiting_phone':
-                if (messageText.match(/^092\d{7}$/)) {
+                if (Validators.isValidMobileNumber(messageText)) {
                     // Check if number has been used before
                     const existingUser = await User.findOne({ mobileNumber: messageText });
                     if (existingUser && existingUser.hasUsedTrial) {
@@ -125,10 +141,13 @@ async function processUserMessage(user, messageText) {
                         );
                     } else {
                         user.mobileNumber = messageText;
-                        user.stage = 'phone_verified';
+                        user.stage = 'trial';
+                        user.hasUsedTrial = true;
+                        user.trialStartDate = new Date();
                         await user.save();
                         await messengerService.sendText(user.messengerId, 
-                            '✅ Your number has been registered. You can now use your daily free trial of 3 messages.'
+                            '✅ Your number has been registered. You can now use your daily free trial of 3 messages.\n\n' +
+                            'Try asking me anything!'
                         );
                     }
                 } else {
@@ -144,12 +163,11 @@ async function processUserMessage(user, messageText) {
                 return;
 
             case 'trial':
-                // Reset daily trial count
-                await user.resetDailyTrialCount();
-                if (user.trialMessagesRemaining <= 0) {
+                // Check trial limits
+                if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
                     await messengerService.sendText(user.messengerId, 
                         '🛑 You\'ve reached your daily free trial limit (3 messages).\n\n' +
-                        'You have reached your free daily limit. Subscribe for premium access:\n\n' +
+                        'Subscribe for premium access:\n\n' +
                         '- 3,000 SSP Weekly: 30 messages/day, standard features\n' +
                         '- 6,500 SSP Monthly: 30 messages/day, extended features & priority service'
                     );
@@ -159,9 +177,8 @@ async function processUserMessage(user, messageText) {
                 break;
 
             case 'subscription_active':
-                // Reset daily message count for subscribers
-                await user.resetDailyMessageCount();
-                if (user.dailyMessageCount >= user.dailyMessageLimit) {
+                // Check subscription limits
+                if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
                     await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                     return;
                 }
@@ -178,31 +195,51 @@ async function processUserMessage(user, messageText) {
         
         if (user.subscription.plan === 'none') {
             // Free trial logic
-            if (user.trialMessagesUsedToday >= 3) {
-                logger.info(`🛑 User ${user.messengerId} reached trial limit (3 messages)`);
-                // Send subscription prompt
+            if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
+                logger.info(`🛑 User ${user.messengerId} reached trial limit (${config.limits.trialMessagesPerDay} messages)`);
+                await messengerService.sendText(user.messengerId, 
+                    '🛑 You\'ve reached your daily free trial limit. Subscribe for premium access!'
+                );
+                await sendSubscriptionOptions(user.messengerId);
                 return;
             }
             user.trialMessagesUsedToday += 1;
-            logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/3`);
+            logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
         } else {
             // Paid subscription logic
-            if (user.dailyMessageCount >= 30) {
-                logger.info(`🛑 User ${user.messengerId} reached daily limit (30 messages)`);
-                // Send daily limit reached message
+            if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
+                logger.info(`🛑 User ${user.messengerId} reached daily limit (${config.limits.subscriptionMessagesPerDay} messages)`);
+                await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                 return;
             }
             user.dailyMessageCount += 1;
-            logger.info(`✅ Daily message count updated: ${user.dailyMessageCount}/30`);
+            logger.info(`✅ Daily message count updated: ${user.dailyMessageCount}/${config.limits.subscriptionMessagesPerDay}`);
         }
 
         await user.save();
         logger.info(`🚀 Proceeding to AI response generation`);
 
         try {
-            // Generate AI response directly without content filtering
-            const aiResponse = await aiService.getFormattedResponse(messageText);
+            // Get or create conversation for context
+            let conversation = await Conversation.findOne({ userId: user._id });
+            if (!conversation) {
+                conversation = new Conversation({ userId: user._id });
+            }
+
+            // Add user message to conversation
+            await conversation.addMessage('user', messageText);
+
+            // Generate AI response with conversation context
+            const context = conversation.getContext();
+            const aiResponse = await aiService.generateResponse(messageText, context);
+            
+            // Add AI response to conversation
+            await conversation.addMessage('assistant', aiResponse);
+            
+            // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
+            
+            logger.info(`✅ AI response sent successfully to user ${user.messengerId}`);
         } catch (error) {
             logger.error('Error getting AI response:', error);
             await messengerService.sendText(user.messengerId, 
