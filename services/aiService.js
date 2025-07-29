@@ -1,39 +1,44 @@
-const OpenAI = require('openai');
+const axios = require('axios');
 const logger = require('../utils/logger');
 
 class AIService {
     constructor() {
-        this.openai = new OpenAI({
-            baseURL: "https://openrouter.ai/api/v1",
-            apiKey: process.env.OPENAI_API_KEY,
-            defaultHeaders: {
-                "HTTP-Referer": "https://answerbotai.onrender.com",
-                "X-Title": "Answer Bot AI",
-            },
-        });
+        this.apiKey = process.env.OPENAI_API_KEY;
+        this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
     }
 
     async generateResponse(userMessage, context = []) {
         try {
             logger.info(`Generating AI response for message: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`);
             
-            const completion = await this.openai.chat.completions.create({
-                model: "mistralai/mistral-nemo:free",
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.'
-                    },
-                    ...context,
-                    {
-                        role: 'user',
-                        content: userMessage
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: "mistralai/mistral-nemo:free",
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.'
+                        },
+                        ...context,
+                        {
+                            role: 'user',
+                            content: userMessage
+                        }
+                    ],
+                    max_tokens: 800
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': 'https://answerbotai.onrender.com',
+                        'X-Title': 'Answer Bot AI',
                     }
-                ],
-                max_tokens: 800
-            });
+                }
+            );
 
-            const aiResponse = completion.choices[0].message.content.trim();
+            const aiResponse = response.data.choices[0].message.content.trim();
             logger.info(`AI response generated successfully: "${aiResponse.substring(0, 50)}${aiResponse.length > 50 ? '...' : ''}"`);
             
             return aiResponse;
