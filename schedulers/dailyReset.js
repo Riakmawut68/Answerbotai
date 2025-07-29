@@ -57,6 +57,7 @@ class DailyResetScheduler {
                 { 
                     $set: { 
                         trialMessagesUsedToday: 0,
+                        trialMessagesRemaining: 3,
                         lastTrialResetDate: new Date()
                     }
                 }

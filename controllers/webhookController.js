@@ -3,6 +3,8 @@ const User = require('../models/user');
 const messengerService = require('../services/messengerService');
 const aiService = require('../services/aiService');
 const momoService = require('../services/momoService');
+const commandService = require('../services/commandService');
+const Validators = require('../utils/validators');
 
 const webhookController = {
     // Verify webhook for Facebook
@@ -84,9 +86,30 @@ async function handleMessage(event) {
 // Process user messages
 async function processUserMessage(user, messageText) {
     try {
+        // Check for commands first
+        const commandResult = await commandService.processCommand(user, messageText);
+        if (commandResult.isCommand) {
+            // Command was processed, don't continue with normal message flow
+            return;
+        }
+
+        // Validate and sanitize message
+        const messageValidation = Validators.validateMessage(messageText);
+        if (!messageValidation.isValid) {
+            logger.warn(`Invalid message from user ${user.messengerId}: ${messageValidation.error}`);
+            await messengerService.sendText(user.messengerId, 
+                '⚠️ Sorry, something went wrong. Please try again later or contact support.'
+            );
+            return;
+        }
+        const sanitizedMessage = Validators.sanitizeInput(messageText);
+
         // Check user consent
         if (!user.consentTimestamp) {
             logger.info(`❌ User ${user.messengerId} hasn't given consent yet`);
+            await messengerService.sendText(user.messengerId, 
+                'Please click "I Agree" to accept our terms and conditions before you can use Answer Bot AI.'
+            );
             return;
         }
 
@@ -94,9 +117,11 @@ async function processUserMessage(user, messageText) {
         logger.info(`🔄 Processing user stage: ${user.stage}`);
         switch(user.stage) {
             case 'awaiting_phone':
-                if (messageText.match(/^092\d{7}$/)) {
+                const phoneValidation = Validators.validateMobileNumber(messageText);
+                if (phoneValidation.isValid) {
+                    const phoneNumber = phoneValidation.value;
                     // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: messageText });
+                    const existingUser = await User.findOne({ mobileNumber: phoneNumber });
                     if (existingUser && existingUser.hasUsedTrial) {
                         await messengerService.sendText(user.messengerId, 
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
@@ -124,7 +149,7 @@ async function processUserMessage(user, messageText) {
                             buttons
                         );
                     } else {
-                        user.mobileNumber = messageText;
+                        user.mobileNumber = phoneNumber;
                         user.stage = 'phone_verified';
                         await user.save();
                         await messengerService.sendText(user.messengerId, 
@@ -133,7 +158,7 @@ async function processUserMessage(user, messageText) {
                     }
                 } else {
                     await messengerService.sendText(user.messengerId, 
-                        'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
+                        phoneValidation.error || 'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
                     );
                 }
                 return;
@@ -142,6 +167,15 @@ async function processUserMessage(user, messageText) {
                 // User is in payment flow, ignore text messages
                 await messengerService.sendText(user.messengerId, 'Please complete your payment to continue.');
                 return;
+
+            case 'phone_verified':
+                // User has verified phone, automatically start trial
+                user.stage = 'trial';
+                user.hasUsedTrial = true;
+                user.trialStartDate = new Date();
+                await user.save();
+                // Continue to process the message as trial user
+                break;
 
             case 'trial':
                 // Reset daily trial count
@@ -181,15 +215,24 @@ async function processUserMessage(user, messageText) {
             if (user.trialMessagesUsedToday >= 3) {
                 logger.info(`🛑 User ${user.messengerId} reached trial limit (3 messages)`);
                 // Send subscription prompt
+                await messengerService.sendText(user.messengerId, 
+                    '🛑 You\'ve reached your daily free trial limit (3 messages).\n\n' +
+                    'You have reached your free daily limit. Subscribe for premium access:\n\n' +
+                    '- 3,000 SSP Weekly: 30 messages/day, standard features\n' +
+                    '- 6,500 SSP Monthly: 30 messages/day, extended features & priority service'
+                );
+                await sendSubscriptionOptions(user.messengerId);
                 return;
             }
             user.trialMessagesUsedToday += 1;
+            user.trialMessagesRemaining = 3 - user.trialMessagesUsedToday;
             logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/3`);
         } else {
             // Paid subscription logic
             if (user.dailyMessageCount >= 30) {
                 logger.info(`🛑 User ${user.messengerId} reached daily limit (30 messages)`);
                 // Send daily limit reached message
+                await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                 return;
             }
             user.dailyMessageCount += 1;
@@ -201,7 +244,7 @@ async function processUserMessage(user, messageText) {
 
         try {
             // Generate AI response directly without content filtering
-            const aiResponse = await aiService.getFormattedResponse(messageText);
+            const aiResponse = await aiService.getFormattedResponse(sanitizedMessage);
             await messengerService.sendText(user.messengerId, aiResponse);
         } catch (error) {
             logger.error('Error getting AI response:', error);
@@ -297,6 +340,16 @@ async function handlePostback(user, payload) {
                     );
                     await sendSubscriptionOptions(user.messengerId);
                 }
+                break;
+
+            case 'RETRY_NUMBER':
+                user.stage = 'awaiting_phone';
+                user.mobileNumber = null;
+                await user.save();
+                await messengerService.sendText(user.messengerId, 
+                    'Please enter your own MTN mobile number (e.g., 092xxxxxxx).\n\n' +
+                    'Providing your number helps us verify your eligibility for the free trial and ensures the security of your account.'
+                );
                 break;
         }
     } catch (error) {

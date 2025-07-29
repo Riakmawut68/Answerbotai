@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  trialMessagesRemaining: {
+    type: Number,
+    default: 3
+  },
   lastTrialResetDate: {
     type: Date
   },
@@ -43,6 +47,10 @@ const userSchema = new mongoose.Schema({
   dailyMessageCount: {
     type: Number,
     default: 0
+  },
+  dailyMessageLimit: {
+    type: Number,
+    default: 30
   },
   lastMessageCountResetDate: {
     type: Date
@@ -83,6 +91,7 @@ userSchema.methods.resetDailyTrialCount = async function() {
   if (!this.lastTrialResetDate || 
       this.lastTrialResetDate.toDateString() !== today.toDateString()) {
     this.trialMessagesUsedToday = 0;
+    this.trialMessagesRemaining = 3;
     this.lastTrialResetDate = today;
     await this.save();
   }

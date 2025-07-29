@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const logger = require('./utils/logger');
+const dailyResetScheduler = require('./schedulers/dailyReset');
+const subscriptionCheckerScheduler = require('./schedulers/subscriptionChecker');
 
 const app = express();
 
@@ -11,7 +13,14 @@ app.use(bodyParser.json());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => logger.info('MongoDB Connected'))
+.then(() => {
+    logger.info('MongoDB Connected');
+    
+    // Start schedulers after database connection
+    dailyResetScheduler.start();
+    subscriptionCheckerScheduler.start();
+    logger.info('🕛 All schedulers started successfully');
+})
 .catch(err => logger.error('MongoDB Connection Error:', err));
 
 // Health check endpoint

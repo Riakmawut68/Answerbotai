@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const User = require('../models/user');
 
 class MomoService {
     constructor() {
