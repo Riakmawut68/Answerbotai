@@ -91,7 +91,10 @@ app.listen(PORT, () => {
     // Start self-ping service if SELF_URL is configured
     if (config.service.selfUrl) {
         logger.info(`🔄 Starting self-ping service to: ${config.service.selfUrl}`);
-        startSelfPing();
+        // Delay self-ping start to allow service to fully initialize
+        setTimeout(() => {
+            startSelfPing();
+        }, 10000); // 10 second delay
     } else {
         logger.warn('⚠️ SELF_URL not configured - self-ping disabled');
         logger.info('💡 To enable self-ping, set SELF_URL environment variable to your service URL');
@@ -142,7 +145,13 @@ function startSelfPing() {
             // Log more details for debugging
             if (error.response) {
                 logger.error(`   Response status: ${error.response.status}`);
-                logger.error(`   Response data: ${JSON.stringify(error.response.data)}`);
+                
+                // Truncate large response data to prevent log flooding
+                let responseData = error.response.data;
+                if (typeof responseData === 'string' && responseData.length > 500) {
+                    responseData = responseData.substring(0, 500) + '... [truncated]';
+                }
+                logger.error(`   Response data: ${JSON.stringify(responseData)}`);
             }
         }
     }
