@@ -289,9 +289,9 @@ async function processUserMessage(user, messageText) {
         }
 
         // Check message limits
-        logger.info(`📊 Message limits check - Plan: ${user.subscription.plan}, Trial used: ${user.trialMessagesUsedToday}, Daily count: ${user.dailyMessageCount}`);
+        logger.info(`📊 Message limits check - Plan: ${user.subscription.planType}, Trial used: ${user.trialMessagesUsedToday}, Daily count: ${user.dailyMessageCount}`);
         
-        if (user.subscription.plan === 'none') {
+        if (user.subscription.planType === 'none') {
             // Free trial logic
             if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
                 logger.info(`🛑 User ${user.messengerId} reached trial limit (${config.limits.trialMessagesPerDay} messages)`);

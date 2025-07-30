@@ -53,7 +53,7 @@ class DailyResetScheduler {
 
             // Reset trial messages for all users
             const trialResetResult = await User.updateMany(
-                { 'subscription.plan': 'none' },
+                { 'subscription.planType': 'none' },
                 { 
                     $set: { 
                         trialMessagesUsedToday: 0,
@@ -65,7 +65,7 @@ class DailyResetScheduler {
             // Reset daily message count for subscribed users
             const subscriptionResetResult = await User.updateMany(
                 { 
-                    'subscription.plan': { $in: ['weekly', 'monthly'] },
+                    'subscription.planType': { $in: ['weekly', 'monthly'] },
                     'subscription.status': 'active'
                 },
                 { 
