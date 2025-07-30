@@ -17,6 +17,9 @@ const subscriptionCheckerScheduler = require('./schedulers/subscriptionChecker')
 
 const app = express();
 
+// Trust proxy for rate limiting behind load balancers (Render, etc.)
+app.set('trust proxy', 1);
+
 // Apply general rate limiting
 app.use(generalLimiter);
 
@@ -168,9 +171,12 @@ process.on('SIGTERM', () => {
     logger.info('🛑 SIGTERM received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
-    mongoose.connection.close(() => {
+    mongoose.connection.close().then(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);
+    }).catch((error) => {
+        logger.error('❌ Error closing MongoDB connection:', error);
+        process.exit(1);
     });
 });
 
@@ -178,8 +184,11 @@ process.on('SIGINT', () => {
     logger.info('🛑 SIGINT received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
-    mongoose.connection.close(() => {
+    mongoose.connection.close().then(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);
+    }).catch((error) => {
+        logger.error('❌ Error closing MongoDB connection:', error);
+        process.exit(1);
     });
 });

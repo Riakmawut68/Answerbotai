@@ -150,9 +150,10 @@ async function processUserMessage(user, messageText) {
         logger.info(`🔄 Processing user stage: ${user.stage}`);
         switch(user.stage) {
             case 'awaiting_phone':
-                if (Validators.isValidMobileNumber(messageText)) {
+                const mobileValidation = Validators.validateMobileNumber(messageText);
+                if (mobileValidation.isValid) {
                     // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: messageText });
+                    const existingUser = await User.findOne({ mobileNumber: mobileValidation.value });
                     if (existingUser && existingUser.hasUsedTrial) {
                         await messengerService.sendText(user.messengerId, 
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
@@ -180,7 +181,7 @@ async function processUserMessage(user, messageText) {
                             buttons
                         );
                     } else {
-                        user.mobileNumber = messageText;
+                        user.mobileNumber = mobileValidation.value;
                         user.stage = 'trial';
                         user.hasUsedTrial = true;
                         user.trialStartDate = new Date();
@@ -192,15 +193,16 @@ async function processUserMessage(user, messageText) {
                     }
                 } else {
                     await messengerService.sendText(user.messengerId, 
-                        'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
+                        `❌ ${mobileValidation.error}`
                     );
                 }
                 return;
 
             case 'awaiting_phone_for_payment':
-                if (Validators.isValidMobileNumber(messageText)) {
+                const mobileValidationPayment = Validators.validateMobileNumber(messageText);
+                if (mobileValidationPayment.isValid) {
                     // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: messageText });
+                    const existingUser = await User.findOne({ mobileNumber: mobileValidationPayment.value });
                     if (existingUser && existingUser.hasUsedTrial) {
                         await messengerService.sendText(user.messengerId, 
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
@@ -228,7 +230,7 @@ async function processUserMessage(user, messageText) {
                             buttons
                         );
                     } else {
-                        user.mobileNumber = messageText;
+                        user.mobileNumber = mobileValidationPayment.value;
                         await user.save();
                         // Send payment processing message immediately
                         await messengerService.sendText(user.messengerId,
@@ -258,7 +260,7 @@ async function processUserMessage(user, messageText) {
                     }
                 } else {
                     await messengerService.sendText(user.messengerId, 
-                        'Sorry, that doesn\'t look like a valid MTN South Sudan number. Please enter a number starting with 092 (e.g., 092xxxxxxx).'
+                        `❌ ${mobileValidationPayment.error}`
                     );
                 }
                 return;
