@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "clear-db": "node clear-database.js",
+    "clear-db-safe": "node clear-database-safe.js"
   },
   "dependencies": {
     "axios": "^1.4.0",

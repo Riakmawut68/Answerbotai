@@ -13,7 +13,7 @@ class AIService {
         this.defaultSystemPrompt = process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.';
     }
 
-    async generateResponse(userMessage, context = []) {
+    async generateResponse(userMessage) {
         try {
             // Basic input sanitization
             const sanitizedMessage = userMessage.replace(/[<>"']/g, "").trim();
@@ -22,15 +22,6 @@ class AIService {
             }
             
             logger.info(`Generating AI response for message: "${sanitizedMessage.substring(0, 50)}${sanitizedMessage.length > 50 ? '...' : ''}"`);
-            
-            // Validate context structure
-            if (context && Array.isArray(context)) {
-                context.forEach((msg, index) => {
-                    if (!msg || !['user', 'assistant', 'system'].includes(msg.role)) {
-                        throw new Error(`Invalid context message at index ${index}: missing or invalid role`);
-                    }
-                });
-            }
             
             const response = await axios.post(
                 this.apiUrl,
@@ -41,7 +32,6 @@ class AIService {
                             role: 'system',
                             content: this.defaultSystemPrompt
                         },
-                        ...context,
                         {
                             role: 'user',
                             content: sanitizedMessage

@@ -1,6 +1,5 @@
 const logger = require('../utils/logger');
 const User = require('../models/user');
-const Conversation = require('../models/conversation');
 const messengerService = require('../services/messengerService');
 const aiService = require('../services/aiService');
 const MomoService = require('../services/momoService');
@@ -317,21 +316,8 @@ async function processUserMessage(user, messageText) {
         logger.info(`🚀 Proceeding to AI response generation`);
 
         try {
-            // Get or create conversation for context
-            let conversation = await Conversation.findOne({ userId: user._id });
-            if (!conversation) {
-                conversation = new Conversation({ userId: user._id });
-            }
-
-            // Add user message to conversation
-            await conversation.addMessage('user', messageText);
-
-            // Generate AI response with conversation context
-            const context = conversation.getContext();
-            const aiResponse = await aiService.generateResponse(messageText, context);
-            
-            // Add AI response to conversation
-            await conversation.addMessage('assistant', aiResponse);
+            // Generate AI response without conversation context
+            const aiResponse = await aiService.generateResponse(messageText);
             
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);

@@ -2,7 +2,6 @@ const logger = require('../utils/logger');
 const Validators = require('../utils/validators');
 const config = require('../config');
 const User = require('../models/user');
-const Conversation = require('../models/conversation');
 const messengerService = require('./messengerService');
 
 class CommandService {
@@ -88,12 +87,6 @@ class CommandService {
         
         await user.save();
 
-        // Clear conversation history
-        const conversation = await Conversation.findOne({ userId: user._id });
-        if (conversation) {
-            await conversation.clear();
-        }
-
         await messengerService.sendText(user.messengerId,
             '✅ Your daily usage has been reset!\n\n' +
             'You can now use your messages again:\n' +
@@ -158,12 +151,6 @@ class CommandService {
         };
 
         await user.save();
-
-        // Clear conversation history
-        const conversation = await Conversation.findOne({ userId: user._id });
-        if (conversation) {
-            await conversation.clear();
-        }
 
         // Send welcome message
         await messengerService.sendWelcomeMessage(user.messengerId);
