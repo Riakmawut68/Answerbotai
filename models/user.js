@@ -53,6 +53,7 @@ const userSchema = new mongoose.Schema({
     enum: [
       'initial',
       'awaiting_phone',
+      'awaiting_phone_for_payment',
       'trial',
       'awaiting_payment',
       'subscribed',
