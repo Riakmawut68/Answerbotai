@@ -387,50 +387,12 @@ async function handlePostback(user, payload) {
                 const planType = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
                 // Save last selected plan type for use after phone collection
                 user.lastSelectedPlanType = planType;
-                if (!user.mobileNumber) {
-                    user.stage = 'awaiting_phone_for_payment';
-                    await user.save();
-                    await messengerService.sendText(user.messengerId,
-                        'To continue, please enter your MTN mobile number (e.g., 092xxxxxxx) for payment processing.'
-                    );
-                    break;
-                }
-                try {
-                    const paymentResult = await momoService.initiatePayment(user, planType);
-                    if (paymentResult.success) {
-                        user.stage = 'awaiting_payment';
-                        await user.save();
-                        await messengerService.sendText(user.messengerId,
-                            '⏳ Your payment is being processed.\n\n' +
-                            'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                            'Type "cancel" to cancel this payment.'
-                        );
-                    }
-                } catch (error) {
-                    logger.error('Payment initiation error:', error);
-                    
-                    // Provide more specific error messages based on the error type
-                    let errorMessage = 'Sorry, there was an error processing your payment request. Please try again in a moment.';
-                    
-                    if (error.message.includes('Missing required MoMo environment variables')) {
-                        errorMessage = 'Payment service is currently unavailable. Please try again later or contact support.';
-                        logger.error('MoMo configuration error - missing environment variables');
-                    } else if (error.response && error.response.status === 401) {
-                        const environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
-                        if (environment === 'sandbox') {
-                            errorMessage = 'Payment service is in testing mode. Please try again in a few minutes.';
-                            logger.info('Sandbox mode: 401 error is expected for test credentials');
-                        } else {
-                            errorMessage = 'Payment authentication failed. Please try again in a few minutes.';
-                            logger.error('MoMo API authentication failed');
-                        }
-                    } else if (error.response && error.response.status === 400) {
-                        errorMessage = 'Invalid payment request. Please check your mobile number and try again.';
-                        logger.error('MoMo API bad request');
-                    }
-                    
-                    await messengerService.sendText(user.messengerId, errorMessage);
-                }
+                // Always ask for phone number for payment, even if user has one from trial
+                user.stage = 'awaiting_phone_for_payment';
+                await user.save();
+                await messengerService.sendText(user.messengerId,
+                    'To continue, please enter your MTN mobile number (e.g., 092xxxxxxx) for payment processing.'
+                );
                 break;
 
             case 'RETRY_NUMBER':
