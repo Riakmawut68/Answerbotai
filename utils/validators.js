@@ -63,7 +63,7 @@ class Validators {
             'phone_verified',
             'trial',
             'awaiting_payment',
-            'subscription_active',
+            'subscribed',
             'subscription_expired'
         ];
         

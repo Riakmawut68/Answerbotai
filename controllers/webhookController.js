@@ -273,7 +273,7 @@ async function processUserMessage(user, messageText) {
                 // Trial stage - proceed to message processing
                 break;
 
-            case 'subscription_active':
+            case 'subscribed':
                 // Check subscription limits
                 if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
                     await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
