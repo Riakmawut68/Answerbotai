@@ -19,6 +19,11 @@ class Validators {
         return { isValid: true, value: cleanNumber };
     }
 
+    // Convenience method for quick mobile number validation
+    static isValidMobileNumber(number) {
+        return this.validateMobileNumber(number).isValid;
+    }
+
     // Validate message content
     static validateMessage(message) {
         if (!message || typeof message !== 'string') {
@@ -63,6 +68,8 @@ class Validators {
             'phone_verified',
             'trial',
             'awaiting_payment',
+            'subscribed',
+            'payment_failed',
             'subscription_active',
             'subscription_expired'
         ];
@@ -160,6 +167,7 @@ class Validators {
         
         return input
             .trim()
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
             .replace(/[<>"']/g, '') // Remove potentially harmful characters
             .replace(/\s+/g, ' ') // Normalize whitespace
             .substring(0, config.validation.maxMessageLength); // Truncate if too long
