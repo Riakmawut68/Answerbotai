@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     validate: {
       validator: function(v) {
+        // Only validate if a value is provided (allow null/undefined for clearing)
+        if (!v) return true;
         return /^092\d{7}$/.test(v);
       },
       message: props => `${props.value} is not a valid MTN South Sudan number!`
