@@ -48,7 +48,7 @@ class MomoService {
         const endpoint = `${this.baseUrl}/collection/v1_0/requesttopay`;
 
         try {
-            logger.info(`Initiating ${planType} payment (${amount} SSP) for ${user.mobileNumber}, Ref: ${reference}`);
+            logger.info(`Initiating ${planType} payment (${amount} SSP) for ${user.paymentMobileNumber || user.mobileNumber}, Ref: ${reference}`);
 
             const requestBody = this.buildRequestBody(user, planType, amount);
             const headers = this.getRequestHeaders(reference);
@@ -217,7 +217,7 @@ class MomoService {
             externalId: this.externalId,
             payer: {
                 partyIdType: "MSISDN",
-                partyId: user.mobileNumber
+                partyId: user.paymentMobileNumber || user.mobileNumber
             },
             payerMessage: `Answer Bot AI ${planType} subscription`,
             payeeNote: `${planType} plan for ${user.messengerId}`,

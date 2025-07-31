@@ -209,13 +209,47 @@ This checklist provides step-by-step instructions for manually testing all user 
 2. Wait for response
 
 **Expected Results:**
-- [ ] If no mobile number: Phone number prompt
-- [ ] If has mobile number: Payment processing starts
-- [ ] Payment processing message: "⏳ Your payment is being processed. Please check your phone for a payment prompt. Complete the transaction within 15 minutes. Type "cancel" to cancel this payment."
+- [ ] Phone number prompt for payment: "To continue, please enter your MTN mobile number (e.g., 092xxxxxxx) for payment processing."
+- [ ] Stage changes to 'awaiting_phone_for_payment'
 
 **Verification:**
 - [ ] Check database: `lastSelectedPlanType: 'weekly'`
-- [ ] Check database: `stage: 'awaiting_payment'` (if payment initiated)
+- [ ] Check database: `stage: 'awaiting_phone_for_payment'`
+
+---
+
+#### **Test Case 4.2: Payment Phone Number Collection**
+**Steps:**
+1. Enter any valid MTN number (e.g., "0921234567") for payment
+2. Send message
+
+**Expected Results:**
+- [ ] Number is validated
+- [ ] Payment processing starts immediately
+- [ ] Payment processing message: "⏳ Your payment is being processed. Please check your phone for a payment prompt. Complete the transaction within 15 minutes. Type "cancel" to cancel this payment."
+- [ ] Stage changes to 'awaiting_payment'
+
+**Verification:**
+- [ ] Check database: `paymentMobileNumber` is set (separate from trial `mobileNumber`)
+- [ ] Check database: `stage: 'awaiting_payment'`
+
+---
+
+#### **Test Case 4.3: Payment Phone Number - Same as Trial Number**
+**Steps:**
+1. Use a phone number that was previously used for trial (e.g., "0921234567")
+2. Enter this number for payment processing
+3. Send message
+
+**Expected Results:**
+- [ ] Number is accepted for payment (no trial usage check)
+- [ ] Payment processing starts immediately
+- [ ] No error about trial usage
+
+**Verification:**
+- [ ] Check database: `paymentMobileNumber` is set to the trial number
+- [ ] Check database: `mobileNumber` remains unchanged (trial number)
+- [ ] Both numbers are stored separately
 
 ---
 

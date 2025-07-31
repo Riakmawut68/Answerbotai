@@ -201,62 +201,35 @@ async function processUserMessage(user, messageText) {
             case 'awaiting_phone_for_payment':
                 const mobileValidationPayment = Validators.validateMobileNumber(messageText);
                 if (mobileValidationPayment.isValid) {
-                    // Check if number has been used before
-                    const existingUser = await User.findOne({ mobileNumber: mobileValidationPayment.value });
-                    if (existingUser && existingUser.hasUsedTrial) {
-                        await messengerService.sendText(user.messengerId, 
-                            '⚠️ This MTN number has already been used for a free trial.\n\n' +
-                            'Please try a different number or subscribe to unlock full access.'
-                        );
-                        const buttons = [
-                            {
-                                type: 'postback',
-                                title: 'Try Different Number',
-                                payload: 'RETRY_NUMBER'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Weekly Plan 3,000 SSP',
-                                payload: 'SUBSCRIBE_WEEKLY'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Monthly Plan 6,500 SSP',
-                                payload: 'SUBSCRIBE_MONTHLY'
-                            }
-                        ];
-                        await messengerService.sendButtonTemplate(user.messengerId, 
-                            'Choose an option to continue:', 
-                            buttons
-                        );
-                    } else {
-                        user.mobileNumber = mobileValidationPayment.value;
-                        await user.save();
-                        // Send payment processing message immediately
-                        await messengerService.sendText(user.messengerId,
-                            '⏳ Your payment is being processed.\n\n' +
-                            'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                            'Type "cancel" to cancel this payment.'
-                        );
-                        // Initiate payment (default to last selected plan, or ask user to select again if not tracked)
-                        // For simplicity, default to weekly plan if not tracked
-                        let planType = user.lastSelectedPlanType || 'weekly';
-                        try {
-                            const paymentResult = await momoService.initiatePayment(user, planType);
-                            if (paymentResult.success) {
-                                user.stage = 'awaiting_payment';
-                                await user.save();
-                            } else {
-                                await messengerService.sendText(user.messengerId,
-                                    'Sorry, there was an error processing your payment request. Please try again in a moment.'
-                                );
-                            }
-                        } catch (error) {
-                            logger.error('Payment initiation error:', error);
+                    // For payment, accept any valid MTN number without checking trial usage
+                    user.paymentMobileNumber = mobileValidationPayment.value;
+                    await user.save();
+                    
+                    // Send payment processing message immediately
+                    await messengerService.sendText(user.messengerId,
+                        '⏳ Your payment is being processed.\n\n' +
+                        'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                        'Type "cancel" to cancel this payment.'
+                    );
+                    
+                    // Initiate payment (default to last selected plan, or ask user to select again if not tracked)
+                    // For simplicity, default to weekly plan if not tracked
+                    let planType = user.lastSelectedPlanType || 'weekly';
+                    try {
+                        const paymentResult = await momoService.initiatePayment(user, planType);
+                        if (paymentResult.success) {
+                            user.stage = 'awaiting_payment';
+                            await user.save();
+                        } else {
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'
                             );
                         }
+                    } catch (error) {
+                        logger.error('Payment initiation error:', error);
+                        await messengerService.sendText(user.messengerId,
+                            'Sorry, there was an error processing your payment request. Please try again in a moment.'
+                        );
                     }
                 } else {
                     await messengerService.sendText(user.messengerId, 
@@ -387,7 +360,8 @@ async function handlePostback(user, payload) {
                 const planType = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
                 // Save last selected plan type for use after phone collection
                 user.lastSelectedPlanType = planType;
-                // Always ask for phone number for payment, even if user has one from trial
+                // Clear any existing payment mobile number and ask for a new one
+                user.paymentMobileNumber = null;
                 user.stage = 'awaiting_phone_for_payment';
                 await user.save();
                 await messengerService.sendText(user.messengerId,
@@ -396,13 +370,22 @@ async function handlePostback(user, payload) {
                 break;
 
             case 'RETRY_NUMBER':
-                user.stage = 'awaiting_phone';
-                user.mobileNumber = null;
-                await user.save();
-                await messengerService.sendText(user.messengerId,
-                    'Please enter a different MTN mobile number (e.g., 092xxxxxxx).\n\n' +
-                    'Make sure this number hasn\'t been used for a trial before.'
-                );
+                // Check if user is in payment flow or trial flow
+                if (user.stage === 'awaiting_phone_for_payment') {
+                    user.paymentMobileNumber = null;
+                    await user.save();
+                    await messengerService.sendText(user.messengerId,
+                        'Please enter a different MTN mobile number (e.g., 092xxxxxxx) for payment processing.'
+                    );
+                } else {
+                    user.stage = 'awaiting_phone';
+                    user.mobileNumber = null;
+                    await user.save();
+                    await messengerService.sendText(user.messengerId,
+                        'Please enter a different MTN mobile number (e.g., 092xxxxxxx).\n\n' +
+                        'Make sure this number hasn\'t been used for a trial before.'
+                    );
+                }
                 break;
 
             case 'START_TRIAL':
