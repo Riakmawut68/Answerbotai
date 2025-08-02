@@ -1,14 +1,52 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 const User = require('../models/user'); // Avoid circular dependencies
+const crypto = require('crypto');
 
 class MomoService {
+    // Fetch and cache MTN MoMo access token
+    async ensureValidToken() {
+        // 5 min buffer before expiry
+        if (!this.momoToken || Date.now() > this.tokenExpiry - 300000) {
+            await this.fetchToken();
+        }
+    }
+
+    async fetchToken() {
+        const endpoint = `${this.baseUrl}/collection/token/`;
+        const auth = Buffer.from(`${this.apiUserId}:${this.apiKey}`).toString('base64');
+        try {
+            const response = await axios.post(endpoint, null, {
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Ocp-Apim-Subscription-Key': this.subscriptionKey,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+            if (response.status >= 200 && response.status < 300 && response.data.access_token) {
+                this.momoToken = response.data.access_token;
+                // expires_in is in seconds
+                const bufferSeconds = 300;
+                this.tokenExpiry = Date.now() + ((response.data.expires_in || 3600) - bufferSeconds) * 1000;
+                logger.info('Fetched new MoMo access token');
+            } else {
+                throw new Error('Failed to fetch MoMo access token');
+            }
+        } catch (error) {
+            logger.error('Error fetching MoMo access token', { message: error.message });
+            throw error;
+        }
+    }
+
     constructor() {
         this.environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
         this.validateConfiguration();
         this.initializeCredentials();
         this.callbackHost = process.env.CALLBACK_HOST;
-        
+        this.currency = 'SSP';
+        this.momoToken = null;
+        this.tokenExpiry = 0;
         logger.info(`MoMo service initialized in ${this.environment} mode`);
     }
 
@@ -20,15 +58,13 @@ class MomoService {
             (this.environment === 'sandbox' 
                 ? 'https://sandbox.momodeveloper.mtn.com' 
                 : 'https://api.momoapi.mtn.com');
-        this.externalId = process.env.MOMO_EXTERNAL_ID || '123456789';
-
         // Mask sensitive keys in logs
         this.maskedApiKey = this.maskString(this.apiKey);
         this.maskedSubKey = this.maskString(this.subscriptionKey);
     }
 
     validateConfiguration() {
-        const requiredVars = ['MOMO_API_USER_ID', 'MOMO_API_KEY', 'MOMO_SUBSCRIPTION_KEY'];
+        const requiredVars = ['MOMO_API_USER_ID', 'MOMO_API_KEY', 'MOMO_SUBSCRIPTION_KEY', 'CALLBACK_HOST'];
         const missingVars = requiredVars.filter(v => !process.env[v]);
 
         if (missingVars.length > 0 && this.environment !== 'sandbox') {
@@ -46,19 +82,15 @@ class MomoService {
         const amount = this.calculatePlanAmount(planType);
         const reference = `PAY-${Date.now()}-${user.messengerId.slice(-4)}`;
         const endpoint = `${this.baseUrl}/collection/v1_0/requesttopay`;
-
         try {
-            logger.info(`Initiating ${planType} payment (${amount} SSP) for ${user.paymentMobileNumber || user.mobileNumber}, Ref: ${reference}`);
-
-            const requestBody = this.buildRequestBody(user, planType, amount);
+            logger.info(`Initiating ${planType} payment (${amount} SSP) for ${this.maskString(user.paymentMobileNumber || user.mobileNumber)}, Ref: ${reference}`);
+            await this.ensureValidToken();
+            const requestBody = this.buildRequestBody(user, planType, amount, reference);
             const headers = this.getRequestHeaders(reference);
-
-            const response = await axios.post(endpoint, requestBody, { headers, timeout: 15000 });
-            
+            const response = await axios.post(endpoint, requestBody, { headers, timeout: 10000 });
             if (response.status >= 200 && response.status < 300) {
                 return await this.handleSuccess(user, planType, amount, reference);
             }
-            
             throw new Error(`Unexpected status: ${response.status}`);
         } catch (error) {
             return this.handlePaymentError(error, user, planType, amount, reference);
@@ -67,14 +99,13 @@ class MomoService {
 
     async checkPaymentStatus(reference) {
         const endpoint = `${this.baseUrl}/collection/v1_0/requesttopay/${reference}`;
-        
         try {
+            await this.ensureValidToken();
             const headers = {
-                'Authorization': `Bearer ${this.apiKey}`,
+                'Authorization': `Bearer ${this.momoToken}`,
                 'X-Target-Environment': this.environment,
                 'Ocp-Apim-Subscription-Key': this.subscriptionKey
             };
-
             const response = await axios.get(endpoint, { headers, timeout: 10000 });
             return response.data;
         } catch (error) {
@@ -107,19 +138,33 @@ class MomoService {
         }
     }
 
-    async handlePaymentCallback(callbackData) {
+    async handlePaymentCallback(callbackData, req = null) {
         try {
             logger.info('Processing payment callback', {
                 reference: callbackData.reference,
                 status: callbackData.status,
                 environment: this.environment
             });
-
+            // Optional: Signature/HMAC verification
+            if (process.env.MOMO_CALLBACK_SECRET && req) {
+                const signature = req.headers['x-callback-signature'];
+                const rawBody = req.rawBody;
+                const expected = crypto.createHmac('sha256', process.env.MOMO_CALLBACK_SECRET)
+                    .update(rawBody)
+                    .digest('hex');
+                if (signature !== expected) {
+                    logger.error('Invalid callback signature', {
+                        expected,
+                        received: signature,
+                        reference: callbackData.reference
+                    });
+                    throw new Error('Invalid callback signature');
+                }
+            }
             // Validate callback data
             if (!callbackData.reference || !callbackData.status) {
                 throw new Error('Invalid callback data: missing reference or status');
             }
-
             // Find user by payment reference
             const user = await User.findOne({
                 'paymentSession.reference': callbackData.reference
@@ -210,29 +255,32 @@ class MomoService {
         return plans[planType];
     }
 
-    buildRequestBody(user, planType, amount) {
+    buildRequestBody(user, planType, amount, reference) {
+        const msisdn = user.paymentMobileNumber || user.mobileNumber;
+        if (!/^\d+$/.test(msisdn)) {
+            throw new Error('Invalid MSISDN format');
+        }
         return {
             amount: amount.toString(),
-            currency: "SSP",
-            externalId: this.externalId,
+            currency: this.currency,
+            externalId: reference, // unique per transaction
             payer: {
                 partyIdType: "MSISDN",
-                partyId: user.paymentMobileNumber || user.mobileNumber
+                partyId: msisdn
             },
             payerMessage: `Answer Bot AI ${planType} subscription`,
-            payeeNote: `${planType} plan for ${user.messengerId}`,
-            callbackUrl: this.callbackHost ? `${this.callbackHost}/momo/callback` : undefined
+            payeeNote: `${planType} plan for ${user.messengerId}`
         };
     }
 
     getRequestHeaders(reference) {
         return {
-            'Authorization': `Bearer ${this.apiKey}`,
+            'Authorization': `Bearer ${this.momoToken}`,
             'X-Reference-Id': reference,
             'X-Target-Environment': this.environment,
             'Ocp-Apim-Subscription-Key': this.subscriptionKey,
             'Content-Type': 'application/json',
-            'X-Callback-Url': this.callbackHost ? `${this.callbackHost}/momo/callback` : undefined
+            'X-Callback-Url': `${this.callbackHost}/momo/callback`
         };
     }
 
@@ -257,18 +305,10 @@ class MomoService {
             planType,
             environment: this.environment
         };
-
         logger.error('Payment initiation failed', {
             message: error.message,
             ...errorContext
         });
-
-        // Sandbox simulation
-        if (this.environment === 'sandbox' && error.response?.status === 401) {
-            logger.warn('Sandbox 401 error detected - simulating success');
-            return this.handleSuccess(user, planType, amount, reference);
-        }
-
         // Detailed error diagnostics
         if (error.response) {
             logger.error('API Error Response:', {
@@ -279,7 +319,6 @@ class MomoService {
         } else if (error.request) {
             logger.error('No response received', error.request);
         }
-
         throw new Error(`Payment initiation failed: ${error.message}`);
     }
 
