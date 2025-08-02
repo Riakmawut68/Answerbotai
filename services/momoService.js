@@ -299,6 +299,12 @@ class MomoService {
     }
 
     handlePaymentError(error, user, planType, amount, reference) {
+        // Enhanced error context logging
+        logger.error('Full payment error context', {
+            config: error.config,
+            code: error.code,
+            stack: error.stack
+        });
         const errorContext = {
             reference,
             user: user.messengerId,
