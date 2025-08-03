@@ -92,7 +92,35 @@ const config = {
         callbackHost: envVars.CALLBACK_HOST,
         externalId: envVars.MOMO_EXTERNAL_ID,
         environment: envVars.MOMO_ENVIRONMENT,
-        currency: 'SSP', // South Sudan Pounds
+        
+        // Smart Currency & Amount Configuration
+        // Frontend always shows SSP prices, backend converts based on environment
+        displayCurrency: 'SSP', // What users see in frontend
+        displayAmounts: {
+            weekly: 3000,   // Always show 3,000 SSP
+            monthly: 6500   // Always show 6,500 SSP
+        },
+        
+        // Backend payment amounts (converted based on environment)
+        getPaymentCurrency() {
+            return this.environment === 'sandbox' ? 'EUR' : 'SSP';
+        },
+        
+        getPaymentAmount(planType) {
+            if (this.environment === 'sandbox') {
+                // Sandbox: Convert SSP to EUR for testing
+                const sspAmount = this.displayAmounts[planType];
+                return sspAmount === 3000 ? 1 : 2; // 3000 SSP → 1 EUR, 6500 SSP → 2 EUR
+            } else {
+                // Production: Use actual SSP amounts
+                return this.displayAmounts[planType];
+            }
+        },
+        
+        // Test phone number for sandbox
+        getTestPhoneNumber() {
+            return this.environment === 'sandbox' ? '256770000000' : null;
+        }
     },
     
     // Service Configuration

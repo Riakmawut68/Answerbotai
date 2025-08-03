@@ -39,13 +39,6 @@ class PaymentProcessingService {
                     reference: paymentResult.reference
                 });
 
-                // Send payment processing message
-                await messengerService.sendText(user.messengerId,
-                    '⏳ Your payment is being processed.\n\n' +
-                    'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                    'Type "cancel" to cancel this payment.'
-                );
-
                 return {
                     success: true,
                     reference: paymentResult.reference,

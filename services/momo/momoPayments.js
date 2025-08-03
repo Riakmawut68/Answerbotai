@@ -7,10 +7,19 @@ class MomoPayments {
     constructor(config, auth) {
         this.config = config;
         this.auth = auth;
+        
+        // Use smart configuration for plan amounts
         this.planAmounts = {
-            weekly: 3000,
-            monthly: 6500
+            weekly: this.config.getPaymentAmount('weekly'),
+            monthly: this.config.getPaymentAmount('monthly')
         };
+        
+        logger.info('MomoPayments initialized with smart configuration', {
+            environment: this.config.environment,
+            currency: this.config.getPaymentCurrency(),
+            weeklyAmount: this.planAmounts.weekly,
+            monthlyAmount: this.planAmounts.monthly
+        });
     }
 
     async initiatePayment(user, planType) {
@@ -19,26 +28,46 @@ class MomoPayments {
         }
 
         const amount = this.planAmounts[planType];
-        const reference = this.generateReference(user.messengerId);
+        const referenceId = uuidv4();
+        const externalId = uuidv4();
         const endpoint = `${this.config.baseUrl}/collection/v1_0/requesttopay`;
 
+        let requestBody, headers;
+        
         try {
             logger.info('Initiating MoMo payment', {
                 user: user.messengerId,
                 planType,
                 amount,
-                reference,
+                referenceId,
+                externalId,
                 environment: this.config.environment
             });
 
             // Ensure we have a valid token
             await this.auth.getValidToken();
 
-            const requestBody = this.buildPaymentRequest(user, planType, amount, reference);
-            const headers = this.auth.getAuthenticatedHeaders(reference);
-            
-            // Add callback URL
-            headers['X-Callback-Url'] = `${this.config.callbackHost}/momo/callback`;
+            // Build request exactly like successful test
+            requestBody = {
+                amount: amount.toString(),
+                currency: this.config.getPaymentCurrency(),
+                externalId: externalId,
+                payer: {
+                    partyIdType: 'MSISDN',
+                    partyId: user.paymentMobileNumber || user.mobileNumber
+                },
+                payerMessage: `Answer Bot AI ${planType} subscription`,
+                payeeNote: `${planType} plan for user ${user.messengerId.slice(-8)}`
+            };
+
+            // Use exact same headers as successful test
+            headers = {
+                'Authorization': `Bearer ${this.auth.token}`,
+                'X-Reference-Id': referenceId,
+                'X-Target-Environment': this.config.environment,
+                'Ocp-Apim-Subscription-Key': this.config.subscriptionKey,
+                'Content-Type': 'application/json'
+            };
 
             const response = await axios.post(endpoint, requestBody, {
                 headers,
@@ -48,14 +77,16 @@ class MomoPayments {
             if (response.status === 202) {
                 // Payment request accepted
                 logger.info('Payment request accepted', {
-                    reference,
+                    referenceId,
+                    externalId,
                     user: user.messengerId,
                     status: response.status
                 });
 
                 return {
                     success: true,
-                    reference,
+                    reference: referenceId,
+                    externalId: externalId,
                     status: 'pending',
                     amount,
                     planType
@@ -66,13 +97,16 @@ class MomoPayments {
 
         } catch (error) {
             logger.error('Payment initiation failed', {
-                reference,
+                referenceId,
+                externalId,
                 user: user.messengerId,
                 planType,
                 amount,
                 error: error.message,
                 status: error.response?.status,
-                data: error.response?.data
+                data: error.response?.data,
+                requestBody: requestBody,
+                headers: headers
             });
 
             throw new Error(`Payment initiation failed: ${error.message}`);
@@ -164,9 +198,12 @@ class MomoPayments {
     buildPaymentRequest(user, planType, amount, reference) {
         const msisdn = this.formatMSISDN(user.paymentMobileNumber || user.mobileNumber);
         
+        // Use EUR for sandbox, SSP for production
+        const currency = this.config.environment === 'sandbox' ? 'EUR' : 'SSP';
+        
         return {
             amount: amount.toString(),
-            currency: this.config.currency,
+            currency: currency,
             externalId: reference,
             payer: {
                 partyIdType: "MSISDN",
@@ -190,13 +227,13 @@ class MomoPayments {
             throw new Error('Invalid phone number format');
         }
 
+        // Return the clean number as-is (don't modify further)
         return cleanNumber;
     }
 
     generateReference(messengerId) {
-        const timestamp = Date.now();
-        const userSuffix = messengerId.slice(-4);
-        return `PAY-${timestamp}-${userSuffix}`;
+        // Use UUID format like our successful test
+        return uuidv4();
     }
 
     calculatePlanAmount(planType) {

@@ -159,23 +159,23 @@ async function processUserMessage(user, messageText) {
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
                             'Please try a different number or subscribe to unlock full access.'
                         );
-                        const buttons = [
-                            {
-                                type: 'postback',
-                                title: 'Try Different Number',
-                                payload: 'RETRY_NUMBER'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Weekly Plan 3,000 SSP',
-                                payload: 'SUBSCRIBE_WEEKLY'
-                            },
-                            {
-                                type: 'postback',
-                                title: 'Monthly Plan 6,500 SSP',
-                                payload: 'SUBSCRIBE_MONTHLY'
-                            }
-                        ];
+                                                 const buttons = [
+                             {
+                                 type: 'postback',
+                                 title: 'Try Different Number',
+                                 payload: 'RETRY_NUMBER'
+                             },
+                             {
+                                 type: 'postback',
+                                 title: `Weekly Plan ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency}`,
+                                 payload: 'SUBSCRIBE_WEEKLY'
+                             },
+                             {
+                                 type: 'postback',
+                                 title: `Monthly Plan ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency}`,
+                                 payload: 'SUBSCRIBE_MONTHLY'
+                             }
+                         ];
                         await messengerService.sendButtonTemplate(user.messengerId, 
                             'Choose an option to continue:', 
                             buttons
@@ -205,21 +205,27 @@ async function processUserMessage(user, messageText) {
                     user.paymentMobileNumber = mobileValidationPayment.value;
                     await user.save();
                     
-                    // Send payment processing message immediately
-                    await messengerService.sendText(user.messengerId,
-                        '⏳ Your payment is being processed.\n\n' +
-                        'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                        'Type "cancel" to cancel this payment.'
-                    );
-                    
-                    // Initiate payment (default to last selected plan, or ask user to select again if not tracked)
+                    // Initiate payment first (default to last selected plan, or ask user to select again if not tracked)
                     // For simplicity, default to weekly plan if not tracked
                     let planType = user.lastSelectedPlanType || 'weekly';
                     try {
                         const paymentResult = await momoService.initiatePayment(user, planType);
                         if (paymentResult.success) {
+                            // ✅ Only send payment processing message when payment request is successful (202 status)
+                            await messengerService.sendText(user.messengerId,
+                                '⏳ Your payment is being processed.\n\n' +
+                                'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                                'Type "cancel" to cancel this payment.'
+                            );
+                            
                             user.stage = 'awaiting_payment';
                             await user.save();
+                            
+                            logger.info(`✅ Payment initiated successfully for user ${user.messengerId}`, {
+                                planType,
+                                amount: paymentResult.amount,
+                                reference: paymentResult.reference
+                            });
                         } else {
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'
@@ -311,21 +317,23 @@ async function processUserMessage(user, messageText) {
 
 // Send subscription options
 async function sendSubscriptionOptions(userId) {
+    const config = require('../config');
+    
     await messengerService.sendText(userId,
         'To continue using Answer Bot AI, please choose a subscription plan:\n\n' +
-        '- 3,000 SSP Weekly: 30 messages/day, standard features\n' +
-        '- 6,500 SSP Monthly: 30 messages/day, extended features & priority service'
+        `- ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency} Weekly: 30 messages/day, standard features\n` +
+        `- ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency} Monthly: 30 messages/day, extended features & priority service`
     );
 
     const buttons = [
         {
             type: 'postback',
-            title: 'Weekly Plan 3,000 SSP',
+            title: `Weekly Plan ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency}`,
             payload: 'SUBSCRIBE_WEEKLY'
         },
         {
             type: 'postback',
-            title: 'Monthly Plan 6,500 SSP',
+            title: `Monthly Plan ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency}`,
             payload: 'SUBSCRIBE_MONTHLY'
         }
     ];
