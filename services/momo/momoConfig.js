@@ -58,8 +58,10 @@ class MomoConfig {
     }
 
     isValidUUID(str) {
+        // Accept both UUID format (with dashes) and 32-character hex format (without dashes)
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        return uuidRegex.test(str);
+        const hexRegex = /^[0-9a-f]{32}$/i;
+        return uuidRegex.test(str) || hexRegex.test(str);
     }
 
     getAuthHeader() {
