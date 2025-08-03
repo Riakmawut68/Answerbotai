@@ -1,20 +1,67 @@
 require('dotenv').config();
+const Joi = require('joi');
+
+// Environment validation schema
+const envVarsSchema = Joi.object({
+    // Server & Database
+    PORT: Joi.number().default(3000),
+    MONGODB_URI: Joi.string().required(),
+    NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+    
+    // Facebook Configuration
+    VERIFY_TOKEN: Joi.string().required(),
+    PAGE_ACCESS_TOKEN: Joi.string().required(),
+    FB_APP_SECRET: Joi.string().required(),
+    
+    // AI Configuration
+    OPENROUTER_API_KEY: Joi.string().optional(),
+    OPENAI_API_KEY: Joi.string().optional(),
+    AI_MODEL: Joi.string().default('mistralai/mistral-nemo:free'),
+    SYSTEM_PROMPT: Joi.string().default('You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.'),
+    MAX_TOKENS: Joi.number().default(800),
+    
+    // MTN MoMo Configuration
+    MOMO_API_USER_ID: Joi.string().uuid().required(),
+    MOMO_API_KEY: Joi.string().uuid().required(),
+    MOMO_SUBSCRIPTION_KEY: Joi.string().uuid().required(),
+    MOMO_BASE_URL: Joi.string().uri().default('https://sandbox.momodeveloper.mtn.com'),
+    CALLBACK_HOST: Joi.string().uri().required(),
+    MOMO_EXTERNAL_ID: Joi.string().optional(),
+    MOMO_ENVIRONMENT: Joi.string().valid('sandbox', 'production').default('sandbox'),
+    
+    // App Configuration
+    SELF_URL: Joi.string().uri().default('https://answerbotai.onrender.com'),
+    ENCRYPTION_KEY: Joi.string().optional(),
+    LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
+}).unknown().required();
+
+// Validate environment variables
+const { error, value: envVars } = envVarsSchema.validate(process.env);
+
+if (error) {
+    throw new Error(`[CONFIG ERROR] ${error.message}`);
+}
+
+// Ensure at least one AI API key is provided
+if (!envVars.OPENROUTER_API_KEY && !envVars.OPENAI_API_KEY) {
+    throw new Error('[CONFIG ERROR] Either OPENROUTER_API_KEY or OPENAI_API_KEY must be provided');
+}
 
 const config = {
     // Server Configuration
     server: {
-        port: process.env.PORT || 3000,
+        port: envVars.PORT,
     },
     
     // App Configuration
     app: {
-        environment: process.env.NODE_ENV || 'development',
+        environment: envVars.NODE_ENV,
         version: '1.0.0',
     },
     
     // Database
     database: {
-        uri: process.env.MONGODB_URI,
+        uri: envVars.MONGODB_URI,
         options: {
             useNewUrlParser: true,
             useUnifiedTopology: true,
@@ -23,34 +70,35 @@ const config = {
     
     // Facebook Configuration
     facebook: {
-        verifyToken: process.env.VERIFY_TOKEN,
-        pageAccessToken: process.env.PAGE_ACCESS_TOKEN,
-        appSecret: process.env.FB_APP_SECRET,
+        verifyToken: envVars.VERIFY_TOKEN,
+        pageAccessToken: envVars.PAGE_ACCESS_TOKEN,
+        appSecret: envVars.FB_APP_SECRET,
     },
     
     // AI Configuration
     ai: {
-        apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
-        model: process.env.AI_MODEL || 'mistralai/mistral-nemo:free',
-        systemPrompt: process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.',
-        maxTokens: parseInt(process.env.MAX_TOKENS) || 800,
+        apiKey: envVars.OPENROUTER_API_KEY || envVars.OPENAI_API_KEY,
+        model: envVars.AI_MODEL,
+        systemPrompt: envVars.SYSTEM_PROMPT,
+        maxTokens: envVars.MAX_TOKENS,
     },
     
     // MTN MoMo Configuration
     momo: {
-        apiUserId: process.env.MOMO_API_USER_ID,
-        apiKey: process.env.MOMO_API_KEY,
-        subscriptionKey: process.env.MOMO_SUBSCRIPTION_KEY,
-        baseUrl: process.env.MOMO_BASE_URL,
-        callbackHost: process.env.CALLBACK_HOST,
-        externalId: process.env.MOMO_EXTERNAL_ID,
-        environment: process.env.MOMO_ENVIRONMENT || 'sandbox',
+        apiUserId: envVars.MOMO_API_USER_ID,
+        apiKey: envVars.MOMO_API_KEY,
+        subscriptionKey: envVars.MOMO_SUBSCRIPTION_KEY,
+        baseUrl: envVars.MOMO_BASE_URL,
+        callbackHost: envVars.CALLBACK_HOST,
+        externalId: envVars.MOMO_EXTERNAL_ID,
+        environment: envVars.MOMO_ENVIRONMENT,
+        currency: 'SSP', // South Sudan Pounds
     },
     
     // Service Configuration
     service: {
-        url: process.env.SELF_URL || 'https://answerbotai.onrender.com',
-        selfUrl: process.env.SELF_URL,
+        url: envVars.SELF_URL,
+        selfUrl: envVars.SELF_URL,
         name: 'Answer Bot AI',
         pingInterval: 50, // seconds
         pingTimeout: 10000, // milliseconds
@@ -84,28 +132,12 @@ const config = {
     
     // Logging
     logging: {
-        level: process.env.LOG_LEVEL || 'info',
+        level: envVars.LOG_LEVEL,
         file: {
             error: './logs/error.log',
             combined: './logs/combined.log'
         }
     }
 };
-
-// Validate required configuration
-const requiredFields = [
-    'database.uri',
-    'facebook.verifyToken',
-    'facebook.pageAccessToken',
-    'facebook.appSecret',
-    'ai.apiKey'
-];
-
-requiredFields.forEach(field => {
-    const value = field.split('.').reduce((obj, key) => obj?.[key], config);
-    if (!value) {
-        throw new Error(`Missing required configuration: ${field}`);
-    }
-});
 
 module.exports = config; 

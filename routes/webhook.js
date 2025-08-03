@@ -1,15 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const webhookController = require('../controllers/webhookController');
-const verifyWebhook = require('../middlewares/verifyWebhook');
+const messengerController = require('../controllers/messengerController');
 
-// Webhook verification endpoint
-router.get('/', verifyWebhook, webhookController.verify);
-
-// Webhook event handling endpoint
-router.post('/', verifyWebhook, webhookController.handleEvent);
-
-// Payment callback endpoint (for MTN MoMo callbacks)
-router.post('/payment-callback', webhookController.handlePaymentCallback);
+// Facebook Messenger webhook routes
+router.get('/', messengerController.verify);
+router.post('/', messengerController.handleEvent);
 
 module.exports = router;

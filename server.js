@@ -67,6 +67,9 @@ app.get('/ping', healthCheckLimiter, (req, res) => {
 // Routes with specific rate limiting
 app.use('/webhook', webhookLimiter, require('./routes/webhook'));
 
+// MoMo payment routes
+app.use('/momo', require('./routes/momo'));
+
 // 404 Handler
 app.use(notFoundHandler);
 

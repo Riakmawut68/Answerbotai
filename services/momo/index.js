@@ -1,10 +1,9 @@
 // Main MTN MoMo Service - Clean Integration
-const MomoConfig = require('./momo/momoConfig');
-const MomoAuth = require('./momo/momoAuth');
-const MomoPayments = require('./momo/momoPayments');
-const MomoApiUser = require('./momo/momoApiUser');
-const logger = require('../utils/logger');
-const User = require('../models/user');
+const MomoConfig = require('./momoConfig');
+const MomoAuth = require('./momoAuth');
+const MomoPayments = require('./momoPayments');
+const MomoApiUser = require('./momoApiUser');
+const logger = require('../../utils/logger');
 
 class MomoService {
     constructor() {
@@ -24,26 +23,7 @@ class MomoService {
     // Payment Operations
     async initiatePayment(user, planType) {
         try {
-            const result = await this.payments.initiatePayment(user, planType);
-            
-            // Update user with payment session
-            user.paymentSession = {
-                planType,
-                amount: result.amount,
-                startTime: new Date(),
-                status: 'pending',
-                reference: result.reference
-            };
-            await user.save();
-
-            logger.info('Payment initiated successfully', {
-                user: user.messengerId,
-                planType,
-                amount: result.amount,
-                reference: result.reference
-            });
-
-            return result;
+            return await this.payments.initiatePayment(user, planType);
         } catch (error) {
             logger.error('Payment initiation failed', {
                 user: user.messengerId,
@@ -64,47 +44,13 @@ class MomoService {
 
     async handlePaymentCallback(callbackData, req = null) {
         try {
-            // Validate callback data
-            if (!callbackData.referenceId || !callbackData.status) {
-                throw new Error('Invalid callback data: missing referenceId or status');
-            }
-
-            // Find user by payment reference
-            const user = await User.findOne({
-                'paymentSession.reference': callbackData.referenceId
-            });
-
-            if (!user) {
-                logger.error('User not found for payment callback', { 
-                    reference: callbackData.referenceId 
-                });
-                throw new Error('User not found for payment reference');
-            }
-
-            // Process the callback
             const result = await this.payments.handlePaymentCallback(callbackData);
-            
-            // Update user payment session
-            if (user.paymentSession) {
-                user.paymentSession.status = callbackData.status;
-                user.paymentSession.processedAt = new Date();
-            }
-
-            // Handle payment result
-            if (result.successful) {
-                await this.processSuccessfulPayment(user);
-            } else if (callbackData.status === 'FAILED') {
-                await this.processFailedPayment(user);
-            }
-
-            await user.save();
             
             // Log the callback for debugging
             if (req) {
-                logger.info('Payment callback processed', {
+                logger.info('Payment callback received', {
                     reference: result.reference,
                     status: result.status,
-                    user: user.messengerId,
                     ip: req.ip,
                     userAgent: req.get('User-Agent')
                 });
