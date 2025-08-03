@@ -6,6 +6,7 @@ const readline = require('readline');
 // Import models
 const User = require('./models/user');
 const Subscription = require('./models/subscription');
+const Conversation = require('./models/conversation');
 
 // Import configuration
 const config = require('./config');
@@ -33,12 +34,14 @@ async function clearDatabaseSafe() {
         // Get counts before deletion
         const userCount = await User.countDocuments();
         const subscriptionCount = await Subscription.countDocuments();
+        const conversationCount = await Conversation.countDocuments();
 
         logger.info(`📊 Current database state:`);
         logger.info(`   Users: ${userCount}`);
         logger.info(`   Subscriptions: ${subscriptionCount}`);
+        logger.info(`   Conversations: ${conversationCount}`);
 
-        if (userCount === 0 && subscriptionCount === 0) {
+        if (userCount === 0 && subscriptionCount === 0 && conversationCount === 0) {
             logger.info('✅ Database is already empty');
             return;
         }
@@ -47,6 +50,7 @@ async function clearDatabaseSafe() {
         logger.warn('⚠️  WARNING: This will delete ALL user data!');
         logger.warn('⚠️  This action cannot be undone!');
         logger.warn('⚠️  Make sure you have backups if needed!');
+        logger.warn('⚠️  This will clear: Users, Subscriptions, and Conversations');
         
         const answer = await question('\n❓ Are you sure you want to proceed? Type "YES" to confirm: ');
         
@@ -66,12 +70,17 @@ async function clearDatabaseSafe() {
         logger.info('🗑️  Starting database cleanup...');
 
         // Delete in order to respect foreign key constraints
-        // 1. Delete subscriptions (they reference users)
+        // 1. Delete conversations (they reference users)
+        logger.info('🗑️  Deleting conversations...');
+        const conversationResult = await Conversation.deleteMany({});
+        logger.info(`   ✅ Deleted ${conversationResult.deletedCount} conversations`);
+
+        // 2. Delete subscriptions (they reference users)
         logger.info('🗑️  Deleting subscriptions...');
         const subscriptionResult = await Subscription.deleteMany({});
         logger.info(`   ✅ Deleted ${subscriptionResult.deletedCount} subscriptions`);
 
-        // 2. Delete users (main collection)
+        // 3. Delete users (main collection)
         logger.info('🗑️  Deleting users...');
         const userResult = await User.deleteMany({});
         logger.info(`   ✅ Deleted ${userResult.deletedCount} users`);
@@ -79,12 +88,14 @@ async function clearDatabaseSafe() {
         // Verify deletion
         const finalUserCount = await User.countDocuments();
         const finalSubscriptionCount = await Subscription.countDocuments();
+        const finalConversationCount = await Conversation.countDocuments();
 
         logger.info('📊 Final database state:');
         logger.info(`   Users: ${finalUserCount}`);
         logger.info(`   Subscriptions: ${finalSubscriptionCount}`);
+        logger.info(`   Conversations: ${finalConversationCount}`);
 
-        if (finalUserCount === 0 && finalSubscriptionCount === 0) {
+        if (finalUserCount === 0 && finalSubscriptionCount === 0 && finalConversationCount === 0) {
             logger.info('✅ Database cleared successfully!');
             logger.info('🎉 You can now test the bot with a fresh start');
         } else {
