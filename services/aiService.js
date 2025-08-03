@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 const config = {
     apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
     apiUrl: 'https://openrouter.ai/api/v1',
-    model: process.env.AI_MODEL || "mistralai/mistral-nemo:free",
+    model: process.env.AI_MODEL || "mistralai/mistral-small-3.2-24b-instruct:free",
     defaultSystemPrompt: process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.',
     maxTokens: 800,
     apiHeaders: {
