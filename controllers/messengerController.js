@@ -251,8 +251,8 @@ async function processUserMessage(user, messageText) {
         logger.info(`🚀 Proceeding to AI response generation`);
 
         try {
-            // Generate AI response without conversation context
-            const aiResponse = await aiService.generateResponse(messageText);
+            // Generate AI response using the formatted response method
+            const aiResponse = await aiService.getFormattedResponse(messageText, 'general');
             
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
