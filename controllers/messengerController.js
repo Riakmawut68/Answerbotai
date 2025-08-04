@@ -71,7 +71,12 @@ async function handleMessage(event) {
         // Handle message events
         if (event.message && event.message.text) {
             const messageText = event.message.text;
-            logger.info(`📝 User message: "${messageText}" | Stage: ${user.stage} | Trial messages: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.userAction('message_received', user.messengerId, {
+            message: messageText,
+            stage: user.stage,
+            trialMessages: `${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`,
+            messageLength: messageText.length
+        });
             await processUserMessage(user, messageText);
         }
 
@@ -107,7 +112,11 @@ async function processUserMessage(user, messageText) {
         }
 
         // Handle different stages of user flow
-        logger.info(`🔄 Processing user stage: ${user.stage}`);
+        logger.stage(user.stage, user.messengerId, {
+            previousStage: user.stage,
+            trialMessagesUsed: user.trialMessagesUsedToday,
+            hasUsedTrial: user.hasUsedTrial
+        });
         switch(user.stage) {
             case 'awaiting_phone':
                 const mobileValidation = Validators.validateMobileNumber(messageText);
@@ -235,7 +244,11 @@ async function processUserMessage(user, messageText) {
                 return;
             }
             user.trialMessagesUsedToday += 1;
-            logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.userAction('trial_message_updated', user.messengerId, {
+            trialMessagesUsed: user.trialMessagesUsedToday,
+            trialLimit: config.limits.trialMessagesPerDay,
+            remainingMessages: config.limits.trialMessagesPerDay - user.trialMessagesUsedToday
+        });
         } else {
             // Paid subscription logic
             if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
@@ -248,8 +261,12 @@ async function processUserMessage(user, messageText) {
         }
 
         await user.save();
-        logger.info(`🚀 Proceeding to AI response generation`);
+        logger.ai('response_generation_started', user.messengerId, {
+            messageLength: messageText.length,
+            stage: user.stage
+        });
 
+        const startTime = Date.now();
         try {
             // Generate AI response using the formatted response method
             const aiResponse = await aiService.getFormattedResponse(messageText, 'general');
@@ -257,7 +274,10 @@ async function processUserMessage(user, messageText) {
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
             
-            logger.info(`✅ AI response sent successfully to user ${user.messengerId}`);
+            logger.ai('response_sent_successfully', user.messengerId, {
+                responseLength: aiResponse.length,
+                responseTime: Date.now() - startTime
+            });
         } catch (error) {
             logger.error('Error getting AI response:', error);
             await messengerService.sendText(user.messengerId, 
