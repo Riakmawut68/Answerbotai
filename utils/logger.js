@@ -125,7 +125,7 @@ logger.warning = (message, userId, details = {}) => {
   });
 };
 
-logger.info = (message, userId, details = {}) => {
+logger.infoMessage = (message, userId, details = {}) => {
   logger.info(`ℹ️ INFO: ${message}`, {
     userId,
     timestamp: new Date().toISOString(),
