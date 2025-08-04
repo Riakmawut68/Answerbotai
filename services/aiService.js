@@ -29,10 +29,10 @@ class AIService {
             throw new Error('Missing OPENROUTER_API_KEY or OPENAI_API_KEY environment variable');
         }
 
-        // 2. Pre-configured axios instance with timeout
+        // 2. Pre-configured axios instance with timeout and retry logic
         this.apiClient = axios.create({
             baseURL: config.apiUrl,
-            timeout: 30000, // 30 second timeout
+            timeout: 45000, // Increased to 45 seconds
             headers: {
                 ...config.apiHeaders,
                 'Authorization': `Bearer ${config.apiKey}`,
@@ -41,7 +41,31 @@ class AIService {
     }
 
     /**
-     * Generates a response from the AI model.
+     * Retry function with exponential backoff
+     */
+    async retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                
+                // Don't retry on certain errors
+                if (error.response?.status === 400 || error.response?.status === 401 || error.response?.status === 403) {
+                    throw error;
+                }
+                
+                const delay = baseDelay * Math.pow(2, attempt - 1);
+                logger.warn(`AI request failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    /**
+     * Generates a response from the AI model with retry logic.
      * @param {Array<Object>} messages - The array of message objects (e.g., [{ role: 'user', content: 'Hello' }]).
      * @param {Object} [options={}] - Optional parameters to override defaults.
      * @param {string} [options.model] - The AI model to use.
@@ -64,7 +88,10 @@ class AIService {
         logger.info(`Generating AI response for message: "${userContent.substring(0, 50)}..."`);
         
         try {
-            const response = await this.apiClient.post('/chat/completions', requestBody);
+            const response = await this.retryWithBackoff(async () => {
+                return await this.apiClient.post('/chat/completions', requestBody);
+            });
+            
             const aiResponse = response.data.choices[0].message.content.trim();
 
             logger.info(`AI response generated successfully: "${aiResponse.substring(0, 50)}..."`);
@@ -77,8 +104,30 @@ class AIService {
                 statusText: error.response?.statusText,
                 code: error.code,
             });
+            
+            // Provide a fallback response for timeout errors
+            if (error.code === 'ECONNABORTED' || error.response?.status === 408) {
+                logger.warn('AI service timeout, providing fallback response');
+                return this.getFallbackResponse(userContent);
+            }
+            
             throw new Error(`Failed to generate AI response: ${error.message}`);
         }
+    }
+
+    /**
+     * Provides a fallback response when AI service is unavailable
+     */
+    getFallbackResponse(userMessage) {
+        const fallbackResponses = [
+            "I apologize, but I'm experiencing some technical difficulties right now. Please try again in a moment, or feel free to ask your question again.",
+            "I'm having trouble processing your request at the moment. Please try again shortly, and I'll be happy to help you.",
+            "Due to high demand, I'm a bit slow to respond right now. Please try again in a few seconds.",
+            "I'm temporarily unavailable. Please try again in a moment, and I'll assist you with your question."
+        ];
+        
+        const randomIndex = Math.floor(Math.random() * fallbackResponses.length);
+        return fallbackResponses[randomIndex];
     }
 
     /**

@@ -100,7 +100,7 @@ class CommandService {
 
     // Handle "cancel" command - Cancel current operation
     async handleCancel(user, messageText) {
-        logger.info(`User ${user.messengerId} requested cancellation`);
+        logger.paymentCancelled(user.messengerId);
 
         // Fix invalid stage if needed
         if (user.stage === 'phone_verified') {

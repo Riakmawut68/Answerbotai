@@ -36,6 +36,7 @@ class MomoService {
             };
             await user.save();
 
+            logger.paymentSuccess(user.messengerId, result.reference, result.amount);
             logger.info('Payment initiated successfully', {
                 user: user.messengerId,
                 planType,

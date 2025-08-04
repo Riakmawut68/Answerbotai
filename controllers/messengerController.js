@@ -60,7 +60,7 @@ async function handleMessage(event) {
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
         if (!user) {
-            logger.info(`🆕 New user registered: ${senderId}`);
+            logger.userRegistered(senderId);
             user = new User({ messengerId: senderId });
             await user.save();
             // Send welcome message for new users
@@ -236,7 +236,7 @@ async function processUserMessage(user, messageText) {
         if (user.subscription.planType === 'none') {
             // Free trial logic
             if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
-                logger.info(`🛑 User ${user.messengerId} reached trial limit (${config.limits.trialMessagesPerDay} messages)`);
+                logger.trialLimitReached(user.messengerId, user.trialMessagesUsedToday);
                 await messengerService.sendText(user.messengerId, 
                     '🛑 You\'ve reached your daily free trial limit. Subscribe for premium access!'
                 );

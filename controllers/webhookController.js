@@ -72,14 +72,14 @@ const webhookController = {
                         'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
                     );
 
-                    logger.info(`✅ Payment completed for user ${user.messengerId}`);
+                    logger.subscriptionActivated(user.messengerId, user.subscription.planType);
                 } else if (user && body.status === 'FAILED') {
                     // Send failure message
                     await messengerService.sendText(user.messengerId,
                         '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
                     );
                     
-                    logger.info(`❌ Payment failed for user ${user.messengerId}`);
+                    logger.paymentFailed(user.messengerId, 'Payment failed');
                 }
             }
 
@@ -100,7 +100,7 @@ async function handleMessage(event) {
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
         if (!user) {
-            logger.info(`🆕 New user registered: ${senderId}`);
+            logger.userRegistered(senderId);
             user = new User({ messengerId: senderId });
             await user.save();
             // Send welcome message for new users
@@ -221,6 +221,7 @@ async function processUserMessage(user, messageText) {
                             user.stage = 'awaiting_payment';
                             await user.save();
                             
+                            logger.paymentSuccess(user.messengerId, paymentResult.reference, paymentResult.amount);
                             logger.info(`✅ Payment initiated successfully for user ${user.messengerId}`, {
                                 planType,
                                 amount: paymentResult.amount,
@@ -273,7 +274,7 @@ async function processUserMessage(user, messageText) {
         if (user.subscription.planType === 'none') {
             // Free trial logic
             if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
-                logger.info(`🛑 User ${user.messengerId} reached trial limit (${config.limits.trialMessagesPerDay} messages)`);
+                logger.trialLimitReached(user.messengerId, user.trialMessagesUsedToday);
                 await messengerService.sendText(user.messengerId, 
                     '🛑 You\'ve reached your daily free trial limit. Subscribe for premium access!'
                 );

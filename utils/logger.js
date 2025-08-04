@@ -63,7 +63,7 @@ logger.add(new winston.transports.Console({
   )
 }));
 
-// Helper methods for stage tracking
+// Helper methods for stage tracking with clear indicators
 logger.stage = (stage, userId, details = {}) => {
   logger.info(`🎯 STAGE TRANSITION`, {
     stage,
@@ -97,6 +97,104 @@ logger.ai = (event, userId, details = {}) => {
     userId,
     timestamp: new Date().toISOString(),
     ...details
+  });
+};
+
+// NEW: Clear result indicators
+logger.success = (message, userId, details = {}) => {
+  logger.info(`✅ SUCCESS: ${message}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+    ...details
+  });
+};
+
+logger.failure = (message, userId, details = {}) => {
+  logger.error(`❌ FAILURE: ${message}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+    ...details
+  });
+};
+
+logger.warning = (message, userId, details = {}) => {
+  logger.warn(`⚠️ WARNING: ${message}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+    ...details
+  });
+};
+
+logger.info = (message, userId, details = {}) => {
+  logger.info(`ℹ️ INFO: ${message}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+    ...details
+  });
+};
+
+// NEW: Payment flow tracking with clear results
+logger.paymentStart = (userId, planType, amount) => {
+  logger.info(`🚀 PAYMENT STARTED`, {
+    userId,
+    planType,
+    amount,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.paymentSuccess = (userId, reference, amount) => {
+  logger.info(`🎉 PAYMENT SUCCESSFUL`, {
+    userId,
+    reference,
+    amount,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.paymentFailed = (userId, reason) => {
+  logger.error(`💥 PAYMENT FAILED`, {
+    userId,
+    reason,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.paymentCancelled = (userId) => {
+  logger.warn(`🚫 PAYMENT CANCELLED`, {
+    userId,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// NEW: User journey tracking
+logger.userRegistered = (userId) => {
+  logger.info(`🆕 NEW USER REGISTERED`, {
+    userId,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.trialStarted = (userId) => {
+  logger.info(`🎯 TRIAL STARTED`, {
+    userId,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.trialLimitReached = (userId, messagesUsed) => {
+  logger.warn(`🛑 TRIAL LIMIT REACHED`, {
+    userId,
+    messagesUsed,
+    timestamp: new Date().toISOString()
+  });
+};
+
+logger.subscriptionActivated = (userId, planType) => {
+  logger.success(`🌟 SUBSCRIPTION ACTIVATED`, {
+    userId,
+    planType,
+    timestamp: new Date().toISOString()
   });
 };
 

@@ -30,14 +30,14 @@ const momoController = {
                         'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
                     );
 
-                    logger.info(`✅ Payment completed for user ${user.messengerId}`);
+                    logger.subscriptionActivated(user.messengerId, 'weekly');
                 } else if (user && body.status === 'FAILED') {
                     // Send failure message
                     await messengerService.sendText(user.messengerId,
                         '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
                     );
                     
-                    logger.info(`❌ Payment failed for user ${user.messengerId}`);
+                    logger.paymentFailed(user.messengerId, 'Payment failed');
                 }
             }
 
