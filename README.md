@@ -2,6 +2,8 @@
 
 A production-grade Messenger Webhook Bot for Answer Bot AI, featuring full onboarding automation, subscription handling, and AI-powered replies.
 
+> 📖 **For a complete project overview, architecture details, and comprehensive documentation, see [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)**
+
 ## Features
 
 - Welcome message and user onboarding
