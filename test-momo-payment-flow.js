@@ -11,14 +11,14 @@ class MomoPaymentFlowTester {
         this.apiUserId = config.momo.apiUserId;
         this.apiKey = config.momo.apiKey;
         this.callbackUrl = `${config.service.url}/momo/callback`;
-        this.currency = 'EUR'; // Use EUR for sandbox testing (UGX not supported)
+        this.currency = config.momo.getPaymentCurrency(); // Use config-based currency
         this.testResults = [];
     }
 
     async runAllTests() {
         console.log('🚀 Starting MoMo Payment Flow Tests...\n');
         console.log(`📡 Base URL: ${this.baseUrl}`);
-        console.log(`💰 Currency: ${this.currency} (sandbox supported)`);
+        console.log(`💰 Currency: ${this.currency} (${config.momo.environment} environment)`);
         console.log(`🌐 Callback URL: ${this.callbackUrl}\n`);
 
         try {
@@ -29,10 +29,10 @@ class MomoPaymentFlowTester {
             await this.testApiUserStatus();
 
             // Test 3: Payment Request (Weekly Plan)
-            await this.testPaymentRequest('weekly', 1); // 1 EUR for testing
+            await this.testPaymentRequest('weekly', config.momo.getPaymentAmount('weekly')); // Use config-based amount
 
             // Test 4: Payment Request (Monthly Plan)
-            await this.testPaymentRequest('monthly', 2); // 2 EUR for testing
+            await this.testPaymentRequest('monthly', config.momo.getPaymentAmount('monthly')); // Use config-based amount
 
             // Test 5: Payment Status Check
             await this.testPaymentStatusCheck();
@@ -128,7 +128,7 @@ class MomoPaymentFlowTester {
                 externalId: externalId,
                 payer: {
                     partyIdType: 'MSISDN',
-                    partyId: '256770000000' // Test phone number for sandbox
+                    partyId: config.momo.getTestPhoneNumber() || '256770000000' // Use config-based test number
                 },
                 payerMessage: payerMessage,
                 payeeNote: payeeNote
@@ -138,7 +138,7 @@ class MomoPaymentFlowTester {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
                     'X-Reference-Id': referenceId,
-                    'X-Target-Environment': 'sandbox',
+                    'X-Target-Environment': config.momo.environment, // Use config-based environment
                     'Ocp-Apim-Subscription-Key': this.subscriptionKey,
                     'Content-Type': 'application/json'
                 },
@@ -185,7 +185,7 @@ class MomoPaymentFlowTester {
             const response = await axios.get(`${this.baseUrl}/collection/v1_0/requesttopay/${this.lastPaymentReference}`, {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
-                    'X-Target-Environment': 'sandbox',
+                    'X-Target-Environment': config.momo.environment, // Use config-based environment
                     'Ocp-Apim-Subscription-Key': this.subscriptionKey,
                     'Content-Type': 'application/json'
                 },

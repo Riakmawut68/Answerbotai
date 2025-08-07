@@ -14,6 +14,7 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 // Import schedulers
 const dailyResetScheduler = require('./schedulers/dailyReset');
 const subscriptionCheckerScheduler = require('./schedulers/subscriptionChecker');
+const paymentTimeoutScheduler = require('./schedulers/paymentTimeout');
 
 const app = express();
 
@@ -70,6 +71,9 @@ app.use('/webhook', webhookLimiter, require('./routes/webhook'));
 // MoMo payment routes
 app.use('/momo', require('./routes/momo'));
 
+// Payment management routes
+app.use('/payment', require('./routes/payment'));
+
 // 404 Handler
 app.use(notFoundHandler);
 
@@ -92,6 +96,7 @@ app.listen(PORT, () => {
     logger.info('🕐 Starting scheduled tasks...');
     dailyResetScheduler.start();
     subscriptionCheckerScheduler.start();
+    paymentTimeoutScheduler.start();
     logger.info('✅ Scheduled tasks started successfully');
     
     // Start self-ping service if SELF_URL is configured
@@ -174,6 +179,7 @@ process.on('SIGTERM', () => {
     logger.info('🛑 SIGTERM received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
+    paymentTimeoutScheduler.stop();
     mongoose.connection.close().then(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);
@@ -187,6 +193,7 @@ process.on('SIGINT', () => {
     logger.info('🛑 SIGINT received, shutting down gracefully...');
     dailyResetScheduler.stop();
     subscriptionCheckerScheduler.stop();
+    paymentTimeoutScheduler.stop();
     mongoose.connection.close().then(() => {
         logger.info('✅ MongoDB connection closed');
         process.exit(0);
