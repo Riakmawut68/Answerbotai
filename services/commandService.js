@@ -162,25 +162,24 @@ class CommandService {
         logger.info(`User ${user.messengerId} requested help`);
 
         const helpMessage = 
-            '🤖 Answer Bot AI - Help Guide\n\n' +
-            '📚 How to Use:\n' +
-            '• Ask any question for AI-powered responses\n' +
-            '• Get help with academics, business, health, agriculture\n' +
-            '• Be specific and clear for best results\n\n' +
-            '🆓 Free Trial & Subscription:\n' +
-            '• Free: 3 messages/day for new users\n' +
-            '• Premium: 30 messages/day with subscription\n' +
-            `• Weekly: ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency}\n` +
-            `• Monthly: ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency}\n\n` +
-            '⚠️ Important:\n' +
-            '• Payments are non-refundable\n' +
-            '• Limits reset at midnight (Juba time)\n' +
-            '• Available 24/7\n\n' +
-            '🛠 Commands:\n' +
-            '• start - Restart the bot\n' +
-            '• cancel - Cancel current operation\n' +
-            '• resetme - Reset your daily usage\n' +
-            '• help - Show this guide\n\n' +
+            '🤖 Answer Bot AI – Help Guide\n\n' +
+            '📚 How to Use\n\n' +
+            'Ask questions on academics, business, health, agriculture, or general knowledge\n\n' +
+            'Keep questions clear & specific for the best answers\n\n' +
+            '🆓 Free vs. Premium\n\n' +
+            'Free: 3 messages/day (new users)\n' +
+            'Premium: 30 messages/day\n' +
+            `Weekly: ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency}\n` +
+            `Monthly: ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency}\n\n` +
+            '⚠️ Important Notes\n\n' +
+            'Payments are non-refundable\n' +
+            'Daily limits reset at midnight (Juba time)\n' +
+            'Available 24/7\n\n' +
+            '🔧 Commands\n\n' +
+            'start – Restart the bot\n' +
+            'cancel – Stop current action\n' +
+            'resetme – Reset your daily usage\n' +
+            'help – Show this guide again\n\n' +
             '📧 Support: riakmawut3@gmail.com';
 
         await messengerService.sendText(user.messengerId, helpMessage);
