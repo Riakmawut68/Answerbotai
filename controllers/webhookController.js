@@ -221,8 +221,7 @@ async function processUserMessage(user, messageText) {
                             user.stage = 'awaiting_payment';
                             await user.save();
                             
-                            logger.paymentSuccess(user.messengerId, paymentResult.reference, paymentResult.amount);
-                            logger.info(`✅ Payment initiated successfully for user ${user.messengerId}`, {
+                            logger.info(`🚀 Payment request initiated for user ${user.messengerId}`, {
                                 planType,
                                 amount: paymentResult.amount,
                                 reference: paymentResult.reference

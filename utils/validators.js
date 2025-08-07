@@ -134,7 +134,7 @@ class Validators {
 
     // Validate command
     static validateCommand(command) {
-        const validCommands = ['cancel', 'start', 'help'];
+        const validCommands = ['resetme', 'cancel', 'start', 'help'];
         
         if (!command || typeof command !== 'string') {
             return { isValid: false, error: 'Command is required and must be a string' };

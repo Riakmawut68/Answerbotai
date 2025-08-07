@@ -154,7 +154,7 @@ class AIService {
             { role: 'system', content: config.defaultSystemPrompt },
             { role: 'user', content: contextualPrompt }
         ];
-
+        
         return this.generateResponse(messages);
     }
 
