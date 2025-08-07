@@ -36,8 +36,7 @@ class MomoService {
             };
             await user.save();
 
-            logger.paymentSuccess(user.messengerId, result.reference, result.amount);
-            logger.info('Payment initiated successfully', {
+            logger.info('Payment request initiated successfully', {
                 user: user.messengerId,
                 planType,
                 amount: result.amount,
@@ -124,7 +123,7 @@ class MomoService {
     // User Management Operations
     async processSuccessfulPayment(user) {
         try {
-            const { planType, amount } = user.paymentSession;
+            const { planType, amount, reference } = user.paymentSession;
             
             // Calculate subscription duration
             const duration = planType === 'weekly' ? 7 : 30;
@@ -146,6 +145,7 @@ class MomoService {
 
             await user.save();
 
+            logger.paymentSuccess(user.messengerId, reference, amount);
             logger.info('Subscription activated successfully', {
                 user: user.messengerId,
                 planType,
