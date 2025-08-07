@@ -113,17 +113,12 @@ By tapping "I Agree", you confirm that you have read and accept our Terms, Priva
         await this.sendText(recipientId, welcomeChunk1);
         await this.sendText(recipientId, welcomeChunk2);
 
-        // Send consent button with trial option
+        // Send consent button only
         const buttons = [
             {
                 type: 'postback',
                 title: 'I Agree',
                 payload: 'I_AGREE'
-            },
-            {
-                type: 'postback',
-                title: 'Start Free Trial',
-                payload: 'START_TRIAL'
             }
         ];
 

@@ -268,6 +268,26 @@ async function processUserMessage(user, messageText) {
                 return;
         }
 
+        // Check subscription expiry in real-time
+        if (user.subscription.planType !== 'none') {
+            const now = new Date();
+            if (user.subscription.expiryDate < now) {
+                // Update status immediately
+                user.subscription.status = 'expired';
+                user.stage = 'subscription_expired';
+                await user.save();
+                
+                logger.info(`⏰ User ${user.messengerId} subscription expired in real-time check`);
+                
+                // Block message and show expiry message
+                await messengerService.sendText(user.messengerId, 
+                    'Your subscription has expired. Please renew to continue using the service.'
+                );
+                await sendSubscriptionOptions(user.messengerId);
+                return;
+            }
+        }
+
         // Check message limits
         logger.info(`📊 Message limits check - Plan: ${user.subscription.planType}, Trial used: ${user.trialMessagesUsedToday}, Daily count: ${user.dailyMessageCount}`);
         
@@ -298,8 +318,8 @@ async function processUserMessage(user, messageText) {
         logger.info(`🚀 Proceeding to AI response generation`);
 
         try {
-            // Generate AI response without conversation context
-            const aiResponse = await aiService.generateResponse(messageText);
+            // Generate AI response with consistent formatting instructions
+            const aiResponse = await aiService.generateUserResponse(messageText);
             
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
@@ -397,22 +417,7 @@ async function handlePostback(user, payload) {
                 }
                 break;
 
-            case 'START_TRIAL':
-                if (!user.hasUsedTrial) {
-                    user.stage = 'trial';
-                    user.hasUsedTrial = true;
-                    user.trialStartDate = new Date();
-                    await user.save();
-                    await messengerService.sendText(user.messengerId,
-                        'Welcome to your free trial! You can send up to 3 messages per day. Try it out now!'
-                    );
-                } else {
-                    await messengerService.sendText(user.messengerId,
-                        'You\'ve already used your free trial. Please subscribe to continue using the service.'
-                    );
-                    await sendSubscriptionOptions(user.messengerId);
-                }
-                break;
+
         }
     } catch (error) {
         logger.error('Error handling postback:', error);

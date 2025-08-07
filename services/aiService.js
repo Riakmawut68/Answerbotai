@@ -6,7 +6,7 @@ const config = {
     apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
     apiUrl: 'https://openrouter.ai/api/v1',
     model: process.env.AI_MODEL || "mistralai/mistral-small-3.2-24b-instruct:free",
-    defaultSystemPrompt: process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant focusing on academics, business, agriculture, health, and general knowledge. Provide accurate, concise responses.',
+    defaultSystemPrompt: process.env.SYSTEM_PROMPT || 'You are a helpful assistant focused on academics, business, agriculture, health, and general knowledge. Always follow these rules: 1) Keep responses under 2000 characters 2) Use plain text only (no formatting, bullets, or bold) 3) For math, use simple text (e.g., 1/2 × b × h) 4) Avoid LaTeX/special notation 5) Be concise unless user requests details.',
     maxTokens: 800,
     apiHeaders: {
         'Content-Type': 'application/json',
@@ -156,6 +156,26 @@ class AIService {
         ];
 
         return this.generateResponse(messages);
+    }
+
+    /**
+     * Generates a response for user messages with consistent formatting instructions.
+     * @param {string} userMessage - The raw message from the user.
+     * @param {Object} [options={}] - Optional parameters to override defaults.
+     * @returns {Promise<string>} The AI-generated response with consistent formatting.
+     */
+    async generateUserResponse(userMessage, options = {}) {
+        const sanitizedMessage = userMessage.replace(/[<>"']/g, "").trim();
+        if (!sanitizedMessage) {
+            throw new Error('Empty or invalid message');
+        }
+
+        const messages = [
+            { role: 'system', content: config.defaultSystemPrompt },
+            { role: 'user', content: sanitizedMessage }
+        ];
+
+        return this.generateResponse(messages, options);
     }
 }
 

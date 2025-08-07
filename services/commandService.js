@@ -7,11 +7,9 @@ const messengerService = require('./messengerService');
 class CommandService {
     constructor() {
         this.commands = {
-            'resetme': this.handleResetMe.bind(this),
             'cancel': this.handleCancel.bind(this),
             'start': this.handleStart.bind(this),
-            'help': this.handleHelp.bind(this),
-            'status': this.handleStatus.bind(this)
+            'help': this.handleHelp.bind(this)
         };
     }
 
@@ -158,21 +156,44 @@ class CommandService {
         return { success: true, action: 'restart' };
     }
 
-    // Handle "help" command - Show available commands
+    // Handle "help" command - Show professional help guide
     async handleHelp(user, messageText) {
         logger.info(`User ${user.messengerId} requested help`);
 
         const helpMessage = 
-            '🤖 **Available Commands:**\n\n' +
-            '• **start** - Restart the bot and begin onboarding\n' +
-            '• **resetme** - Reset your daily message count\n' +
+            '🤖 **Answer Bot AI - Help & Support Guide**\n\n' +
+            'Welcome to Answer Bot AI! Here\'s everything you need to know to get the most out of our intelligent assistant.\n\n' +
+            '📚 **How to Use Answer Bot AI:**\n\n' +
+            '• **Ask Any Question**: Simply type your question and get intelligent, AI-powered responses\n' +
+            '• **Academic Support**: Get help with homework, research, and educational topics\n' +
+            '• **Business Guidance**: Receive insights on business strategies, market analysis, and professional advice\n' +
+            '• **Health Information**: Access general health knowledge and wellness tips\n' +
+            '• **Agricultural Support**: Get farming advice, crop management tips, and agricultural insights\n' +
+            '• **General Knowledge**: Explore any topic with comprehensive, accurate information\n\n' +
+            '💡 **Best Practices:**\n\n' +
+            '• **Be Specific**: The more detailed your question, the better the response\n' +
+            '• **Ask Follow-ups**: Build on previous answers for deeper understanding\n' +
+            '• **Use Clear Language**: Write clearly to get the most accurate responses\n' +
+            '• **Respect Limits**: Be mindful of your daily message allowance\n\n' +
+            '🆓 **Free Trial & Subscription:**\n\n' +
+            '• **Free Trial**: New users get 3 messages per day to explore our service\n' +
+            '• **Premium Access**: Subscribe for 30 messages per day with enhanced features\n' +
+            '• **Pricing**:\n' +
+            `  - Weekly Plan: ${config.momo.displayAmounts.weekly.toLocaleString()} ${config.momo.displayCurrency} (30 messages/day)\n` +
+            `  - Monthly Plan: ${config.momo.displayAmounts.monthly.toLocaleString()} ${config.momo.displayCurrency} (30 messages/day + priority support)\n\n` +
+            '⚠️ **Important Information:**\n\n' +
+            '• **Non-Refundable**: All subscription payments are non-refundable once access is granted\n' +
+            '• **Daily Limits**: Message limits reset at midnight (Juba time)\n' +
+            '• **Service Availability**: Available 24/7 for your convenience\n' +
+            '• **Data Privacy**: Your conversations are private and secure\n\n' +
+            '🛠 **Available Commands:**\n\n' +
+            '• **start** - Restart the bot and begin fresh\n' +
             '• **cancel** - Cancel current operation (payment, registration)\n' +
-            '• **status** - Check your current status and usage\n' +
-            '• **help** - Show this help message\n\n' +
-            '💡 **Usage Limits:**\n' +
-            `• Trial: ${config.limits.trialMessagesPerDay} messages per day\n` +
-            `• Subscribers: ${config.limits.subscriptionMessagesPerDay} messages per day\n\n` +
-            '📞 **Support:** Contact us if you need assistance.';
+            '• **help** - Show this help guide\n\n' +
+            '📞 **Need More Help?**\n\n' +
+            'If you have questions, need technical support, or want to report an issue, please contact our support team:\n\n' +
+            '📧 **Email**: riakmawut3@gmail.com\n\n' +
+            'We\'re here to help you get the most out of Answer Bot AI! 🚀';
 
         await messengerService.sendText(user.messengerId, helpMessage);
         return { success: true, action: 'help' };
