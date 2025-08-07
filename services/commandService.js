@@ -178,7 +178,6 @@ class CommandService {
             '🔧 Commands\n\n' +
             'start – Restart the bot\n' +
             'cancel – Stop current action\n' +
-            'resetme – Reset your daily usage\n' +
             'help – Show this guide again\n\n' +
             '📧 Support: riakmawut3@gmail.com';
 

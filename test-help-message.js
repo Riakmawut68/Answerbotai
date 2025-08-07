@@ -51,7 +51,6 @@ async function showHelpMessage() {
     console.log('');
     console.log('start – Restart the bot');
     console.log('cancel – Stop current action');
-    console.log('resetme – Reset your daily usage');
     console.log('help – Show this guide again');
     console.log('');
     console.log('📧 Support: riakmawut3@gmail.com');
