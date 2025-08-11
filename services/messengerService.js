@@ -48,56 +48,71 @@ class MessengerService {
     }
 
     async sendWelcomeMessage(recipientId) {
-        const welcomeChunk1 = `👋 Welcome to Answer Bot AI!
+        const welcomeChunk1 = `👋 **Welcome to Answer Bot AI!**  
+*Your trusted educational assistant powered by advanced AI - designed for South Sudanese learners and professionals.*
 
-Your intelligent virtual assistant powered by GPT-4.1 Nano. We're pleased to have you on board.
+### 📚 **What I Can Help With**
+Instant answers in:
+- Academics (science, math, literature)
+- Business (startups, finance, marketing)
+- Agriculture (crop advice, livestock)
+- Health (wellness, nutrition)
+- General knowledge (current events, local info)
 
-🤖 What Can I Help With?
+---
 
-Answer Bot AI assists with:
-- 📚 Academics
-- 💼 Business
-- 🌱 Agriculture
-- 🏥 Health
-- ❓ General knowledge
+### 🆓 **Free Trial & Premium Access**
+NEW USER BONUS: 3 free messages today!
+Premium Benefits (After trial):
 
-Whether you're a student, professional, or curious learner, I provide fast, intelligent answers to help you solve problems and learn efficiently.
+30 messages/day
 
-🆓 Free Trial & Subscription
+Priority responses
 
-- As a new user, you get 3 free messages every day to explore Answer Bot AI.
-- After your daily limit, you'll be prompted to subscribe for premium access.
-- Please have your MoMo (Mobile Money) number ready and recharged.
-- Pricing:  
-  • 3,000 SSP/week (30 messages per day, standard features)  
-  • 6,500 SSP/month (30 messages per day, extended features & priority service)
+Extended topic coverage
 
-📜 Compliance & Legal Responsibility
+Plan	Price	Messages/Day
+Weekly	3,000 SSP	30
+Monthly	6,500 SSP	30
+Payment via MTN MoMo - no banking details stored
 
-Nyamora Co.ltd operates Answer Bot AI in full compliance with:
-- Meta's Platform Terms & Developer Policies
-- Data privacy laws & user protection
-- Mobile money transaction guidelines
-- Digital services & e-commerce regulations
-- Meta's community standards
+🔒 Your Privacy & Data Security
+Strict safeguards:
+AES-256 encryption for all data
 
-We do not engage in unauthorized data collection, deceptive practices, or deliver false/harmful information. All AI responses are responsibly generated.
+Servers located in secure cloud infrastructure
 
-🔐 Data Privacy Policy
+Zero third-party data sharing
 
-- We collect only essential data (user ID, message count, subscription status).
-- No sensitive personal info is accessed, stored, or shared unless needed for service and with your consent.
-- Data is used only to operate Answer Bot AI.
-- All data is stored securely and never sold or transferred to third parties.
-- You can request data deletion at any time.
-- We use industry-standard encryption and security practices.
+Automatic deletion after 30 days inactivity
 
-⚖ Terms & Conditions
+Delete anytime: Message DELETE MY DATA
 
-By using Answer Bot AI, you agree to:
-- Use the platform for personal, academic, or professional inquiry only.
-- Understand that all responses are AI-generated and not professional advice.
-- Not send or promote hate speech, abuse, violence, harassment, or misleadin`;
+⚖ Terms of Use
+By proceeding, you agree:
+
+Use for personal/educational purposes only
+
+AI responses ≠ professional advice
+
+No illegal/harmful content
+
+Subscription fees non-refundable after access
+
+Service may evolve with notice
+
+Full compliance with:
+
+Meta Platform Terms
+
+South Sudan Data Protection Laws
+
+MTN MoMo Transaction Policies
+
+📋 Important Links
+- [Privacy Policy](https://nyamora-digital-gateway.web.app/privacy)
+- [Terms of Service](https://nyamora-digital-gateway.web.app/terms)
+- [Data Deletion Guide](https://nyamora-digital-gateway.web.app/data-deletion)`;
 
         const welcomeChunk2 = `g content.
 - Misuse or violations may lead to access restrictions or bans.

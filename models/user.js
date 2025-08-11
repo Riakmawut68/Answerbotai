@@ -89,6 +89,13 @@ const userSchema = new mongoose.Schema({
     status: String,
     reference: String,
     processedAt: Date
+  },
+  markedForDeletion: {
+    type: Boolean,
+    default: false
+  },
+  deletionRequestedAt: {
+    type: Date
   }
 }, {
   timestamps: true

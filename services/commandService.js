@@ -10,7 +10,8 @@ class CommandService {
             'resetme': this.handleResetMe.bind(this),
             'cancel': this.handleCancel.bind(this),
             'start': this.handleStart.bind(this),
-            'help': this.handleHelp.bind(this)
+            'help': this.handleHelp.bind(this),
+            'delete my data': this.handleDeleteMyData.bind(this)
         };
     }
 
@@ -58,9 +59,16 @@ class CommandService {
 
         const cleanMessage = messageText.trim().toLowerCase();
         
+        // Check for exact matches first (including multi-word commands)
+        for (const command of Object.keys(this.commands)) {
+            if (cleanMessage === command) {
+                return command;
+            }
+        }
+
         // Check if message starts with a command
         for (const command of Object.keys(this.commands)) {
-            if (cleanMessage === command || cleanMessage.startsWith(`${command} `)) {
+            if (cleanMessage.startsWith(`${command} `)) {
                 return command;
             }
         }
@@ -148,6 +156,8 @@ class CommandService {
             plan: 'none',
             status: 'none'
         };
+        user.markedForDeletion = false;
+        user.deletionRequestedAt = null;
 
         await user.save();
 
@@ -178,7 +188,8 @@ class CommandService {
             '🔧 Commands\n\n' +
             'start – Restart the bot\n' +
             'cancel – Stop current action\n' +
-            'help – Show this guide again\n\n' +
+            'help – Show this guide again\n' +
+            'delete my data – Request data deletion\n\n' +
             '📧 Support: riakmawut3@gmail.com';
 
         await messengerService.sendText(user.messengerId, helpMessage);
@@ -222,6 +233,39 @@ class CommandService {
 
         await messengerService.sendText(user.messengerId, statusMessage);
         return { success: true, action: 'status' };
+    }
+
+    // Handle "delete my data" command - Process data deletion request
+    async handleDeleteMyData(user, messageText) {
+        logger.info(`User ${user.messengerId} requested data deletion`);
+
+        // Send confirmation message
+        const deletionMessage = 
+            '🗑️ **Data Deletion Request Received**\n\n' +
+            'We have received your request to delete your data.\n\n' +
+            '📋 **What will be deleted:**\n' +
+            '• Your Messenger ID\n' +
+            '• Message count history\n' +
+            '• Subscription information\n' +
+            '• Phone number (if provided)\n' +
+            '• All conversation data\n\n' +
+            '⚠️ **Important:**\n' +
+            '• This action cannot be undone\n' +
+            '• You will lose access to your subscription\n' +
+            '• You will need to start over if you return\n\n' +
+            '🔒 **Data will be permanently deleted within 24 hours**\n\n' +
+            '📧 **For immediate deletion, contact:**\n' +
+            'riakmawut3@gmail.com\n\n' +
+            'Thank you for using Answer Bot AI.';
+
+        await messengerService.sendText(user.messengerId, deletionMessage);
+
+        // Mark user for deletion (will be processed by cleanup service)
+        user.markedForDeletion = true;
+        user.deletionRequestedAt = new Date();
+        await user.save();
+
+        return { success: true, action: 'delete_data_requested' };
     }
 }
 
