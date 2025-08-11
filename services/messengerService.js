@@ -48,77 +48,68 @@ class MessengerService {
     }
 
     async sendWelcomeMessage(recipientId) {
-        const welcomeChunk1 = `👋 **Welcome to Answer Bot AI!**  
-*Your trusted educational assistant powered by advanced AI - designed for South Sudanese learners and professionals.*
+        const welcomeChunk1 = `👋 Welcome to Answer Bot AI!
 
-### 📚 **What I Can Help With**
+Your trusted educational assistant powered by advanced AI - designed for South Sudanese learners and professionals.
+
+📚 What I Can Help With
+
 Instant answers in:
-- Academics (science, math, literature)
-- Business (startups, finance, marketing)
-- Agriculture (crop advice, livestock)
-- Health (wellness, nutrition)
-- General knowledge (current events, local info)
+• Academics (science, math, literature)
+• Business (startups, finance, marketing)
+• Agriculture (crop advice, livestock)
+• Health (wellness, nutrition)
+• General knowledge (current events, local info)
 
----
+🆓 Free Trial & Premium Access
 
-### 🆓 **Free Trial & Premium Access**
 NEW USER BONUS: 3 free messages today!
+
 Premium Benefits (After trial):
+• 30 messages/day
+• Priority responses
+• Extended topic coverage
 
-30 messages/day
+Subscription Plans:
+Weekly: 3,000 SSP (30 messages/day)
+Monthly: 6,500 SSP (30 messages/day)
 
-Priority responses
-
-Extended topic coverage
-
-Plan	Price	Messages/Day
-Weekly	3,000 SSP	30
-Monthly	6,500 SSP	30
 Payment via MTN MoMo - no banking details stored
 
 🔒 Your Privacy & Data Security
+
 Strict safeguards:
-AES-256 encryption for all data
-
-Servers located in secure cloud infrastructure
-
-Zero third-party data sharing
-
-Automatic deletion after 30 days inactivity
-
-Delete anytime: Message DELETE MY DATA
+• AES-256 encryption for all data
+• Servers located in secure cloud infrastructure
+• Zero third-party data sharing
+• Automatic deletion after 30 days inactivity
+• Delete anytime: Message DELETE MY DATA
 
 ⚖ Terms of Use
+
 By proceeding, you agree:
-
-Use for personal/educational purposes only
-
-AI responses ≠ professional advice
-
-No illegal/harmful content
-
-Subscription fees non-refundable after access
-
-Service may evolve with notice
+• Use for personal/educational purposes only
+• AI responses ≠ professional advice
+• No illegal/harmful content
+• Subscription fees non-refundable after access
+• Service may evolve with notice
 
 Full compliance with:
-
-Meta Platform Terms
-
-South Sudan Data Protection Laws
-
-MTN MoMo Transaction Policies
+• Meta Platform Terms
+• South Sudan Data Protection Laws
+• MTN MoMo Transaction Policies
 
 📋 Important Links
-- [Privacy Policy](https://nyamora-digital-gateway.web.app/privacy)
-- [Terms of Service](https://nyamora-digital-gateway.web.app/terms)
-- [Data Deletion Guide](https://nyamora-digital-gateway.web.app/data-deletion)`;
+Privacy Policy: https://nyamora-digital-gateway.web.app/privacy
+Terms of Service: https://nyamora-digital-gateway.web.app/terms
+Data Deletion Guide: https://nyamora-digital-gateway.web.app/data-deletion`;
 
-        const welcomeChunk2 = `g content.
-- Misuse or violations may lead to access restrictions or bans.
-- Subscription fees are non-refundable once access is granted.
-- We may update terms, pricing, or features at any time (you'll be notified).
-For help, contact our support team via the app or official channels.
+        const welcomeChunk2 = `📋 Additional Terms
+
+• Misuse or violations may lead to access restrictions or bans
+• Subscription fees are non-refundable once access is granted
+• We may update terms, pricing, or features at any time (you'll be notified)
+• For help, contact our support team via the app or official channels
 
 🟢 Consent Required
 
