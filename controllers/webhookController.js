@@ -32,6 +32,30 @@ const webhookController = {
             logger.info(`📨 Received webhook event: ${body.object || 'unknown'}`);
             if (body.entry && body.entry.length > 0) {
                 logger.info(`📝 Processing ${body.entry.length} entry/entries`);
+                
+                // Enhanced logging for each entry
+                for (const entry of body.entry) {
+                    logger.info(`📍 Entry ID: ${entry.id}, Time: ${new Date(entry.time).toISOString()}`);
+                    
+                    if (entry.messaging && entry.messaging.length > 0) {
+                        logger.info(`💬 Found ${entry.messaging.length} messaging event(s)`);
+                        
+                        for (const event of entry.messaging) {
+                            // Log event type for reviewers
+                            if (event.message) {
+                                logger.info(`📨 Event Type: MESSAGE | Sender: ${event.sender.id}`);
+                            } else if (event.postback) {
+                                logger.info(`🔘 Event Type: POSTBACK | Sender: ${event.sender.id} | Payload: ${event.postback.payload}`);
+                            } else if (event.delivery) {
+                                logger.info(`✅ Event Type: DELIVERY | Recipient: ${event.recipient.id}`);
+                            } else if (event.read) {
+                                logger.info(`👁️ Event Type: READ | Recipient: ${event.recipient.id}`);
+                            } else {
+                                logger.info(`❓ Event Type: UNKNOWN | Sender: ${event.sender.id}`);
+                            }
+                        }
+                    }
+                }
             }
 
             // Return 200 OK for all webhook events
@@ -367,12 +391,16 @@ async function sendSubscriptionOptions(userId) {
 // Handle postback events
 async function handlePostback(user, payload) {
     try {
+        logger.info(`🔘 Processing postback for user ${user.messengerId}: ${payload}`);
+        
         switch (payload) {
             case 'GET_STARTED':
+                logger.info(`🚀 User ${user.messengerId} clicked "Get Started"`);
                 await sendWelcomeMessage(user.messengerId);
                 break;
 
             case 'I_AGREE':
+                logger.info(`✅ User ${user.messengerId} accepted terms and conditions`);
                 user.consentTimestamp = new Date();
                 user.stage = 'awaiting_phone';
                 await user.save();
@@ -384,7 +412,7 @@ async function handlePostback(user, payload) {
                 break;
 
             case 'SUBSCRIBE_WEEKLY':
-            case 'SUBSCRIBE_MONTHLY':
+                logger.info(`💳 User ${user.messengerId} selected Weekly subscription plan`);
                 const planType = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
                 // Save last selected plan type for use after phone collection
                 user.lastSelectedPlanType = planType;
@@ -396,8 +424,23 @@ async function handlePostback(user, payload) {
                     'To continue, please enter your MTN mobile number (e.g., 092xxxxxxx) for payment processing.'
                 );
                 break;
+                
+            case 'SUBSCRIBE_MONTHLY':
+                logger.info(`💳 User ${user.messengerId} selected Monthly subscription plan`);
+                const planType2 = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
+                // Save last selected plan type for use after phone collection
+                user.lastSelectedPlanType = planType2;
+                // Clear any existing payment mobile number and ask for a new one
+                user.paymentMobileNumber = null;
+                user.stage = 'awaiting_phone_for_payment';
+                await user.save();
+                await messengerService.sendText(user.messengerId,
+                    'To continue, please enter your MTN mobile number (e.g., 092xxxxxxx) for payment processing.'
+                );
+                break;
 
             case 'RETRY_NUMBER':
+                logger.info(`🔄 User ${user.messengerId} requested to retry with different number`);
                 // Check if user is in payment flow or trial flow
                 if (user.stage === 'awaiting_phone_for_payment') {
                     user.paymentMobileNumber = null;
@@ -416,10 +459,9 @@ async function handlePostback(user, payload) {
                 }
                 break;
 
-
         }
     } catch (error) {
-        logger.error('Error handling postback:', error);
+        logger.error(`❌ Error processing postback for user ${user.messengerId}:`, error);
     }
 }
 
