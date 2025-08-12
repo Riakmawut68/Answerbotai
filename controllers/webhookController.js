@@ -30,6 +30,11 @@ const webhookController = {
             const { body } = req;
 
             logger.info(`📨 Received webhook event: ${body.object || 'unknown'}`);
+            
+            // CRITICAL: Send 200 OK immediately to prevent Facebook retries
+            res.status(200).send('OK');
+            logger.info(`✅ Webhook acknowledgment sent: 200 OK to Facebook`);
+            
             if (body.entry && body.entry.length > 0) {
                 logger.info(`📝 Processing ${body.entry.length} entry/entries`);
                 
@@ -58,9 +63,7 @@ const webhookController = {
                 }
             }
 
-            // Return 200 OK for all webhook events
-            res.status(200).send('OK');
-
+            // Process events after sending response
             if (body.object === 'page') {
                 for (const entry of body.entry) {
                     for (const event of entry.messaging) {
@@ -70,7 +73,7 @@ const webhookController = {
             }
         } catch (error) {
             logger.error('❌ Error handling webhook event:', error);
-            // Already sent 200 OK to Facebook
+            // Response already sent, so we can't send error response
         }
     },
 
@@ -119,8 +122,11 @@ const webhookController = {
 async function handleMessage(event) {
     try {
         const senderId = event.sender.id;
-        logger.info(`👤 Processing message from user: ${senderId}`);
-
+        
+        // Add duplicate event detection
+        const eventId = event.message?.mid || event.postback?.payload || `unknown_${Date.now()}`;
+        logger.info(`👤 Processing message from user: ${senderId} | Event ID: ${eventId}`);
+        
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
         if (!user) {
