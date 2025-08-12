@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const messengerController = require('../controllers/messengerController');
+const webhookController = require('../controllers/webhookController');
 
 // Facebook Messenger webhook routes
-router.get('/', messengerController.verify);
-router.post('/', messengerController.handleEvent);
+router.get('/', webhookController.verify);
+router.post('/', webhookController.handleEvent);
 
 module.exports = router;
