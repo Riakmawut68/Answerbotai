@@ -1,0 +1,5 @@
+[33m19da2f1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix webhook duplication issue - Send 200 OK immediately to prevent Facebook retries and add acknowledgment logging for App Review
+[33m7251f74[m Enhanced webhook logging for App Review - Added detailed event type logging and postback tracking for better reviewer visibility
+[33ma1d1f1f[m fix: clean welcome message formatting for Facebook Messenger
+[33m9a5b177[m feat: enhance onboarding message and add data deletion functionality
+[33mee767d9[m Add: Comprehensive project overview consolidating all project descriptions

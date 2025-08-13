@@ -17,7 +17,11 @@ const webhookController = {
 
         if (mode && token) {
             if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
-                logger.info('Webhook verified');
+                logger.info('################################');
+                logger.info('### WEBHOOK VERIFICATION ###');
+                logger.info('### (pages_manage_metadata) ###');
+                logger.info('################################');
+                logger.info('✅ Webhook verified successfully');
                 return res.status(200).send(challenge);
             }
             return res.sendStatus(403);
@@ -29,34 +33,71 @@ const webhookController = {
         try {
             const { body } = req;
 
-            logger.info(`📨 Received webhook event: ${body.object || 'unknown'}`);
+            logger.info('################################');
+            logger.info('### MESSENGER WEBHOOK EVENTS ###');
+            logger.info('### (pages_manage_metadata) ###');
+            logger.info('################################');
+            logger.info(`📨 [WEBHOOK RECEIVED]`);
+            logger.info(`  ├── Object: ${body.object || 'unknown'}`);
+            logger.info(`  ├── Entries: ${body.entry ? body.entry.length : 0}`);
+            logger.info(`  └── Permission: pages_manage_metadata`);
             
             // CRITICAL: Send 200 OK immediately to prevent Facebook retries
             res.status(200).send('OK');
-            logger.info(`✅ Webhook acknowledgment sent: 200 OK to Facebook`);
+            logger.info(`✅ [WEBHOOK ACKNOWLEDGMENT]`);
+            logger.info(`  ├── Status: 200 OK sent to Facebook`);
+            logger.info(`  ├── Permission: pages_manage_metadata`);
+            logger.info(`  └── Action: Preventing webhook retries`);
             
             if (body.entry && body.entry.length > 0) {
-                logger.info(`📝 Processing ${body.entry.length} entry/entries`);
+                logger.info(`📝 [PROCESSING ENTRIES]`);
+                logger.info(`  ├── Count: ${body.entry.length} entry/entries`);
+                logger.info(`  └── Permission: pages_manage_metadata`);
                 
                 // Enhanced logging for each entry
                 for (const entry of body.entry) {
-                    logger.info(`📍 Entry ID: ${entry.id}, Time: ${new Date(entry.time).toISOString()}`);
+                    logger.info(`📍 [ENTRY DETAILS]`);
+                    logger.info(`  ├── ID: ${entry.id}`);
+                    logger.info(`  ├── Time: ${new Date(entry.time).toISOString()}`);
+                    logger.info(`  └── Permission: pages_manage_metadata`);
                     
                     if (entry.messaging && entry.messaging.length > 0) {
-                        logger.info(`💬 Found ${entry.messaging.length} messaging event(s)`);
+                        logger.info(`💬 [MESSAGING EVENTS]`);
+                        logger.info(`  ├── Count: ${entry.messaging.length} event(s)`);
+                        logger.info(`  └── Permission: pages_manage_metadata`);
                         
                         for (const event of entry.messaging) {
-                            // Log event type for reviewers
+                            // Log event type for reviewers with structured format
                             if (event.message) {
-                                logger.info(`📨 Event Type: MESSAGE | Sender: ${event.sender.id}`);
+                                logger.info(`📨 [MESSAGE RECEIVED]`);
+                                logger.info(`  ├── User: ${event.sender.id}`);
+                                logger.info(`  ├── Content: "${event.message.text ? event.message.text.substring(0, 50) + (event.message.text.length > 50 ? '...' : '') : 'No text'}"`);
+                                logger.info(`  ├── Permission: pages_messaging`);
+                                logger.info(`  └── Action: Processing user input`);
                             } else if (event.postback) {
-                                logger.info(`🔘 Event Type: POSTBACK | Sender: ${event.sender.id} | Payload: ${event.postback.payload}`);
+                                logger.info(`🔘 [POSTBACK RECEIVED]`);
+                                logger.info(`  ├── User: ${event.sender.id}`);
+                                logger.info(`  ├── Payload: ${event.postback.payload}`);
+                                logger.info(`  ├── Permission: pages_manage_metadata`);
+                                logger.info(`  └── Action: Processing button click`);
                             } else if (event.delivery) {
-                                logger.info(`✅ Event Type: DELIVERY | Recipient: ${event.recipient.id}`);
+                                logger.info(`✅ [DELIVERY CONFIRMATION]`);
+                                logger.info(`  ├── Recipient: ${event.recipient.id}`);
+                                logger.info(`  ├── Messages: ${event.delivery.mids ? event.delivery.mids.length : 0}`);
+                                logger.info(`  ├── Permission: pages_manage_metadata`);
+                                logger.info(`  └── Action: Confirming message delivery`);
                             } else if (event.read) {
-                                logger.info(`👁️ Event Type: READ | Recipient: ${event.recipient.id}`);
+                                logger.info(`👁️ [READ CONFIRMATION]`);
+                                logger.info(`  ├── Recipient: ${event.recipient.id}`);
+                                logger.info(`  ├── Watermark: ${event.read.watermark ? new Date(event.read.watermark * 1000).toISOString() : 'N/A'}`);
+                                logger.info(`  ├── Permission: pages_manage_metadata`);
+                                logger.info(`  └── Action: Confirming message read`);
                             } else {
-                                logger.info(`❓ Event Type: UNKNOWN | Sender: ${event.sender.id}`);
+                                logger.info(`❓ [UNKNOWN EVENT]`);
+                                logger.info(`  ├── User: ${event.sender ? event.sender.id : 'Unknown'}`);
+                                logger.info(`  ├── Type: ${Object.keys(event).join(', ')}`);
+                                logger.info(`  ├── Permission: pages_manage_metadata`);
+                                logger.info(`  └── Action: Logging for review`);
                             }
                         }
                     }
@@ -65,15 +106,50 @@ const webhookController = {
 
             // Process events after sending response
             if (body.object === 'page') {
+                logger.info(`🚀 [WEBHOOK PROCESSING]`);
+                logger.info(`  ├── Object: page`);
+                logger.info(`  ├── Entries: ${body.entry.length}`);
+                logger.info(`  ├── Permission: pages_manage_metadata`);
+                logger.info(`  └── Action: Processing page events`);
+                
                 for (const entry of body.entry) {
                     for (const event of entry.messaging) {
+                        // Log user journey milestones with structured format
+                        if (event.message && event.message.text) {
+                            const messageText = event.message.text.toLowerCase();
+                            if (messageText.includes('hello') || messageText.includes('hi') || messageText.includes('start')) {
+                                logger.info(`🌟 [USER JOURNEY]`);
+                                logger.info(`  ├── Event: New conversation initiated`);
+                                logger.info(`  ├── User: ${event.sender.id}`);
+                                logger.info(`  ├── Permission: pages_messaging`);
+                                logger.info(`  └── Action: Starting onboarding flow`);
+                            } else if (messageText.includes('subscribe') || messageText.includes('plan')) {
+                                logger.info(`💳 [USER JOURNEY]`);
+                                logger.info(`  ├── Event: Subscription interest expressed`);
+                                logger.info(`  ├── User: ${event.sender.id}`);
+                                logger.info(`  ├── Permission: pages_messaging`);
+                                logger.info(`  └── Action: Showing subscription options`);
+                            }
+                        }
+                        
                         await handleMessage(event);
                     }
                 }
+                
+                logger.info(`✅ [WEBHOOK COMPLETED]`);
+                logger.info(`  ├── Status: Successfully processed`);
+                logger.info(`  ├── Permission: pages_manage_metadata`);
+                logger.info(`  └── Action: All events handled`);
             }
         } catch (error) {
-            logger.error('❌ Error handling webhook event:', error);
-            // Response already sent, so we can't send error response
+            logger.error('################################');
+            logger.error('### WEBHOOK ERROR ###');
+            logger.error('### (pages_manage_metadata) ###');
+            logger.error('################################');
+            logger.error(`❌ [ERROR]`);
+            logger.error(`  ├── Type: Webhook processing error`);
+            logger.error(`  ├── Permission: pages_manage_metadata`);
+            logger.error(`  └── Details: ${error.message}`);
         }
     },
 
@@ -81,18 +157,39 @@ const webhookController = {
     handlePaymentCallback: async (req, res) => {
         try {
             const { body } = req;
-            logger.info('💰 Payment callback received:', body);
+            
+            logger.info('################################');
+            logger.info('### MTN MoMo PAYMENT CALLBACK ###');
+            logger.info('### (pages_manage_metadata) ###');
+            logger.info('################################');
+            logger.info(`💰 [PAYMENT CALLBACK RECEIVED]`);
+            logger.info(`  ├── Status: ${body.status}`);
+            logger.info(`  ├── Reference: ${body.reference}`);
+            logger.info(`  ├── Permission: pages_manage_metadata`);
+            logger.info(`  └── Action: Processing payment result`);
 
             // Process the callback using the enhanced MomoService
             const result = await momoService.handlePaymentCallback(body);
             
             if (result.success) {
+                logger.info(`✅ [PAYMENT PROCESSED]`);
+                logger.info(`  ├── Status: Successfully processed`);
+                logger.info(`  ├── Reference: ${body.reference}`);
+                logger.info(`  ├── Permission: pages_manage_metadata`);
+                logger.info(`  └── Action: Updating user subscription`);
+                
                 // Find user by payment reference to send notification
                 const user = await User.findOne({ 
                     'paymentSession.reference': body.reference 
                 });
 
                 if (user && body.status === 'SUCCESSFUL') {
+                    logger.info(`🎉 [SUBSCRIPTION ACTIVATED]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Plan: ${user.subscription.planType}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Sending success notification`);
+                    
                     // Send success message
                     await messengerService.sendText(user.messengerId,
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
@@ -101,6 +198,12 @@ const webhookController = {
 
                     logger.subscriptionActivated(user.messengerId, user.subscription.planType);
                 } else if (user && body.status === 'FAILED') {
+                    logger.info(`❌ [PAYMENT FAILED]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Reference: ${body.reference}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Sending failure notification`);
+                    
                     // Send failure message
                     await messengerService.sendText(user.messengerId,
                         '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
@@ -108,11 +211,23 @@ const webhookController = {
                     
                     logger.paymentFailed(user.messengerId, 'Payment failed');
                 }
+            } else {
+                logger.error(`❌ [PAYMENT PROCESSING FAILED]`);
+                logger.error(`  ├── Reference: ${body.reference}`);
+                logger.error(`  ├── Permission: pages_manage_metadata`);
+                logger.error(`  └── Action: Logging error for review`);
             }
 
             res.status(200).json({ status: 'OK' });
         } catch (error) {
-            logger.error('❌ Error handling payment callback:', error);
+            logger.error('################################');
+            logger.error('### PAYMENT CALLBACK ERROR ###');
+            logger.error('### (pages_manage_metadata) ###');
+            logger.error('################################');
+            logger.error(`❌ [ERROR]`);
+            logger.error(`  ├── Type: Payment callback error`);
+            logger.error(`  ├── Permission: pages_manage_metadata`);
+            logger.error(`  └── Details: ${error.message}`);
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -125,11 +240,21 @@ async function handleMessage(event) {
         
         // Add duplicate event detection
         const eventId = event.message?.mid || event.postback?.payload || `unknown_${Date.now()}`;
-        logger.info(`👤 Processing message from user: ${senderId} | Event ID: ${eventId}`);
         
+        logger.info(`👤 [MESSAGE PROCESSING]`);
+        logger.info(`  ├── User: ${senderId}`);
+        logger.info(`  ├── Event ID: ${eventId}`);
+        logger.info(`  ├── Permission: pages_messaging`);
+        logger.info(`  └── Action: Starting message processing`);
+
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
         if (!user) {
+            logger.info(`🆕 [NEW USER REGISTERED]`);
+            logger.info(`  ├── User: ${senderId}`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: Creating user account`);
+            
             logger.userRegistered(senderId);
             user = new User({ messengerId: senderId });
             await user.save();
@@ -141,17 +266,38 @@ async function handleMessage(event) {
         // Handle message events
         if (event.message && event.message.text) {
             const messageText = event.message.text;
-            logger.info(`📝 User message: "${messageText}" | Stage: ${user.stage} | Trial messages: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.info(`📝 [USER MESSAGE]`);
+            logger.info(`  ├── User: ${senderId}`);
+            logger.info(`  ├── Content: "${messageText}"`);
+            logger.info(`  ├── Stage: ${user.stage}`);
+            logger.info(`  ├── Trial: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: Processing user input`);
+            
             await processUserMessage(user, messageText);
         }
 
         // Handle postback events (button clicks)
         if (event.postback && event.postback.payload) {
+            logger.info(`🔘 [POSTBACK PROCESSING]`);
+            logger.info(`  ├── User: ${senderId}`);
+            logger.info(`  ├── Payload: ${event.postback.payload}`);
+            logger.info(`  ├── Permission: pages_manage_metadata`);
+            logger.info(`  └── Action: Processing button interaction`);
+            
             await handlePostback(user, event.postback.payload);
         }
 
     } catch (error) {
-        logger.error('Error in handleMessage:', error);
+        logger.error('################################');
+        logger.error('### MESSAGE PROCESSING ERROR ###');
+        logger.error('### (pages_messaging) ###');
+        logger.error('################################');
+        logger.error(`❌ [ERROR]`);
+        logger.error(`  ├── Type: Message processing error`);
+        logger.error(`  ├── User: ${event.sender?.id || 'Unknown'}`);
+        logger.error(`  ├── Permission: pages_messaging`);
+        logger.error(`  └── Details: ${error.message}`);
     }
 }
 
@@ -160,7 +306,11 @@ async function processUserMessage(user, messageText) {
     try {
         // Check user consent
         if (!user.consentTimestamp) {
-            logger.info(`❌ User ${user.messengerId} hasn't given consent yet`);
+            logger.info(`❌ [CONSENT CHECK]`);
+            logger.info(`  ├── User: ${user.messengerId}`);
+            logger.info(`  ├── Status: No consent given`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: Blocking message processing`);
             return;
         }
 
@@ -168,16 +318,29 @@ async function processUserMessage(user, messageText) {
         const commandResult = await commandService.processCommand(user, messageText);
         if (commandResult.isCommand) {
             if (commandResult.handled) {
-                logger.info(`✅ Command processed successfully for user ${user.messengerId}`);
+                logger.info(`✅ [COMMAND PROCESSED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Command: ${messageText}`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Command executed successfully`);
                 return;
             } else {
-                logger.warn(`❌ Command processing failed for user ${user.messengerId}`);
+                logger.warn(`❌ [COMMAND FAILED]`);
+                logger.warn(`  ├── User: ${user.messengerId}`);
+                logger.warn(`  ├── Command: ${messageText}`);
+                logger.warn(`  ├── Permission: pages_messaging`);
+                logger.warn(`  └── Action: Command processing failed`);
                 return;
             }
         }
 
         // Handle different stages of user flow
-        logger.info(`🔄 Processing user stage: ${user.stage}`);
+        logger.info(`🔄 [STAGE PROCESSING]`);
+        logger.info(`  ├── User: ${user.messengerId}`);
+        logger.info(`  ├── Stage: ${user.stage}`);
+        logger.info(`  ├── Permission: pages_messaging`);
+        logger.info(`  └── Action: Processing user stage`);
+        
         switch(user.stage) {
             case 'awaiting_phone':
                 const mobileValidation = Validators.validateMobileNumber(messageText);
@@ -185,6 +348,12 @@ async function processUserMessage(user, messageText) {
                     // Check if number has been used before
                     const existingUser = await User.findOne({ mobileNumber: mobileValidation.value });
                     if (existingUser && existingUser.hasUsedTrial) {
+                        logger.info(`⚠️ [TRIAL LIMIT REACHED]`);
+                        logger.info(`  ├── User: ${user.messengerId}`);
+                        logger.info(`  ├── Number: ${mobileValidation.value}`);
+                        logger.info(`  ├── Permission: pages_messaging`);
+                        logger.info(`  └── Action: Showing subscription options`);
+                        
                         await messengerService.sendText(user.messengerId, 
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
                             'Please try a different number or subscribe to unlock full access.'
@@ -211,6 +380,12 @@ async function processUserMessage(user, messageText) {
                             buttons
                         );
                     } else {
+                        logger.info(`✅ [PHONE REGISTERED]`);
+                        logger.info(`  ├── User: ${user.messengerId}`);
+                        logger.info(`  ├── Number: ${mobileValidation.value}`);
+                        logger.info(`  ├── Permission: pages_messaging`);
+                        logger.info(`  └── Action: Activating trial access`);
+                        
                         user.mobileNumber = mobileValidation.value;
                         user.stage = 'trial';
                         user.hasUsedTrial = true;
@@ -222,6 +397,13 @@ async function processUserMessage(user, messageText) {
                         );
                     }
                 } else {
+                    logger.info(`❌ [INVALID PHONE]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Input: ${messageText}`);
+                    logger.info(`  ├── Error: ${mobileValidation.error}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Requesting valid number`);
+                    
                     await messengerService.sendText(user.messengerId, 
                         `❌ ${mobileValidation.error}`
                     );
@@ -235,12 +417,26 @@ async function processUserMessage(user, messageText) {
                     user.paymentMobileNumber = mobileValidationPayment.value;
                     await user.save();
                     
+                    logger.info(`✅ [PAYMENT PHONE REGISTERED]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Number: ${mobileValidationPayment.value}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Initiating payment`);
+                    
                     // Initiate payment first (default to last selected plan, or ask user to select again if not tracked)
                     // For simplicity, default to weekly plan if not tracked
                     let planType = user.lastSelectedPlanType || 'weekly';
                     try {
                         const paymentResult = await momoService.initiatePayment(user, planType);
                         if (paymentResult.success) {
+                            logger.info(`🚀 [PAYMENT INITIATED]`);
+                            logger.info(`  ├── User: ${user.messengerId}`);
+                            logger.info(`  ├── Plan: ${planType}`);
+                            logger.info(`  ├── Amount: ${paymentResult.amount}`);
+                            logger.info(`  ├── Reference: ${paymentResult.reference}`);
+                            logger.info(`  ├── Permission: pages_messaging`);
+                            logger.info(`  └── Action: Payment request successful`);
+                            
                             // ✅ Only send payment processing message when payment request is successful (202 status)
                             await messengerService.sendText(user.messengerId,
                                 '⏳ Your payment is being processed.\n\n' +
@@ -250,24 +446,36 @@ async function processUserMessage(user, messageText) {
                             
                             user.stage = 'awaiting_payment';
                             await user.save();
-                            
-                            logger.info(`🚀 Payment request initiated for user ${user.messengerId}`, {
-                                planType,
-                                amount: paymentResult.amount,
-                                reference: paymentResult.reference
-                            });
                         } else {
+                            logger.error(`❌ [PAYMENT INITIATION FAILED]`);
+                            logger.error(`  ├── User: ${user.messengerId}`);
+                            logger.error(`  ├── Plan: ${planType}`);
+                            logger.error(`  ├── Permission: pages_messaging`);
+                            logger.error(`  └── Action: Payment request failed`);
+                            
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'
                             );
                         }
                     } catch (error) {
-                        logger.error('Payment initiation error:', error);
+                        logger.error(`❌ [PAYMENT ERROR]`);
+                        logger.error(`  ├── User: ${user.messengerId}`);
+                        logger.error(`  ├── Plan: ${planType}`);
+                        logger.error(`  ├── Permission: pages_messaging`);
+                        logger.error(`  └── Details: ${error.message}`);
+                        
                         await messengerService.sendText(user.messengerId,
                             'Sorry, there was an error processing your payment request. Please try again in a moment.'
                         );
                     }
                 } else {
+                    logger.info(`❌ [INVALID PAYMENT PHONE]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Input: ${messageText}`);
+                    logger.info(`  ├── Error: ${mobileValidationPayment.error}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Requesting valid number`);
+                    
                     await messengerService.sendText(user.messengerId, 
                         `❌ ${mobileValidationPayment.error}`
                     );
@@ -276,6 +484,12 @@ async function processUserMessage(user, messageText) {
 
             case 'awaiting_payment':
                 // User is in payment flow, ignore text messages
+                logger.info(`⏳ [PAYMENT IN PROGRESS]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Status: Awaiting payment completion`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Informing user to complete payment`);
+                
                 await messengerService.sendText(user.messengerId, 'Please complete your payment to continue.');
                 return;
 
@@ -286,12 +500,24 @@ async function processUserMessage(user, messageText) {
             case 'subscribed':
                 // Check subscription limits
                 if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
+                    logger.info(`🛑 [DAILY LIMIT REACHED]`);
+                    logger.info(`  ├── User: ${user.messengerId}`);
+                    logger.info(`  ├── Limit: ${config.limits.subscriptionMessagesPerDay}`);
+                    logger.info(`  ├── Permission: pages_messaging`);
+                    logger.info(`  └── Action: Informing user of limit`);
+                    
                     await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                     return;
                 }
                 break;
 
             case 'subscription_expired':
+                logger.info(`⏰ [SUBSCRIPTION EXPIRED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Status: Subscription expired`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Prompting renewal`);
+                
                 await messengerService.sendText(user.messengerId, 'Your subscription has expired. Please renew to continue using the service.');
                 await sendSubscriptionOptions(user.messengerId);
                 return;
@@ -306,7 +532,11 @@ async function processUserMessage(user, messageText) {
                 user.stage = 'subscription_expired';
                 await user.save();
                 
-                logger.info(`⏰ User ${user.messengerId} subscription expired in real-time check`);
+                logger.info(`⏰ [REAL-TIME EXPIRY CHECK]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Status: Subscription expired`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Updating user status`);
                 
                 // Block message and show expiry message
                 await messengerService.sendText(user.messengerId, 
@@ -318,11 +548,23 @@ async function processUserMessage(user, messageText) {
         }
 
         // Check message limits
-        logger.info(`📊 Message limits check - Plan: ${user.subscription.planType}, Trial used: ${user.trialMessagesUsedToday}, Daily count: ${user.dailyMessageCount}`);
+        logger.info(`📊 [MESSAGE LIMITS CHECK]`);
+        logger.info(`  ├── User: ${user.messengerId}`);
+        logger.info(`  ├── Plan: ${user.subscription.planType}`);
+        logger.info(`  ├── Trial used: ${user.trialMessagesUsedToday}`);
+        logger.info(`  ├── Daily count: ${user.dailyMessageCount}`);
+        logger.info(`  ├── Permission: pages_messaging`);
+        logger.info(`  └── Action: Validating message limits`);
         
         if (user.subscription.planType === 'none') {
             // Free trial logic
             if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
+                logger.info(`🛑 [TRIAL LIMIT REACHED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Trial used: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Prompting subscription`);
+                
                 logger.trialLimitReached(user.messengerId, user.trialMessagesUsedToday);
                 await messengerService.sendText(user.messengerId, 
                     '🛑 You\'ve reached your daily free trial limit. Subscribe for premium access!'
@@ -331,20 +573,37 @@ async function processUserMessage(user, messageText) {
                 return;
             }
             user.trialMessagesUsedToday += 1;
-            logger.info(`✅ Trial message count updated: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.info(`✅ [TRIAL MESSAGE UPDATED]`);
+            logger.info(`  ├── User: ${user.messengerId}`);
+            logger.info(`  ├── Count: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: Incrementing trial count`);
         } else {
             // Paid subscription logic
             if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
-                logger.info(`🛑 User ${user.messengerId} reached daily limit (${config.limits.subscriptionMessagesPerDay} messages)`);
+                logger.info(`🛑 [DAILY LIMIT REACHED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Limit: ${config.limits.subscriptionMessagesPerDay}`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Action: Blocking message`);
+                
                 await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                 return;
             }
             user.dailyMessageCount += 1;
-            logger.info(`✅ Daily message count updated: ${user.dailyMessageCount}/${config.limits.subscriptionMessagesPerDay}`);
+            logger.info(`✅ [DAILY MESSAGE UPDATED]`);
+            logger.info(`  ├── User: ${user.messengerId}`);
+            logger.info(`  ├── Count: ${user.dailyMessageCount}/${config.limits.subscriptionMessagesPerDay}`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: Incrementing daily count`);
         }
 
         await user.save();
-        logger.info(`🚀 Proceeding to AI response generation`);
+        logger.info(`🚀 [AI RESPONSE GENERATION]`);
+        logger.info(`  ├── User: ${user.messengerId}`);
+        logger.info(`  ├── Status: Proceeding to AI service`);
+        logger.info(`  ├── Permission: pages_messaging`);
+        logger.info(`  └── Action: Generating AI response`);
 
         try {
             // Generate AI response with consistent formatting instructions
@@ -353,21 +612,44 @@ async function processUserMessage(user, messageText) {
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
             
-            logger.info(`✅ AI response sent successfully to user ${user.messengerId}`);
+            logger.info(`✅ [AI RESPONSE SENT]`);
+            logger.info(`  ├── User: ${user.messengerId}`);
+            logger.info(`  ├── Status: Successfully sent`);
+            logger.info(`  ├── Permission: pages_messaging`);
+            logger.info(`  └── Action: AI response delivered`);
         } catch (error) {
-            logger.error('Error getting AI response:', error);
+            logger.error(`❌ [AI RESPONSE ERROR]`);
+            logger.error(`  ├── User: ${user.messengerId}`);
+            logger.error(`  ├── Error: ${error.message}`);
+            logger.error(`  ├── Permission: pages_messaging`);
+            logger.error(`  └── Action: Sending error message`);
+            
             await messengerService.sendText(user.messengerId, 
                 "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.");
         }
 
     } catch (error) {
-        logger.error('Error processing message:', error);
+        logger.error('################################');
+        logger.error('### MESSAGE PROCESSING ERROR ###');
+        logger.error('### (pages_messaging) ###');
+        logger.error('################################');
+        logger.error(`❌ [ERROR]`);
+        logger.error(`  ├── Type: Message processing error`);
+        logger.error(`  ├── User: ${user?.messengerId || 'Unknown'}`);
+        logger.error(`  ├── Permission: pages_messaging`);
+        logger.error(`  └── Details: ${error.message}`);
     }
 }
 
 // Send subscription options
 async function sendSubscriptionOptions(userId) {
     const config = require('../config');
+    
+    logger.info(`💳 [SUBSCRIPTION OPTIONS]`);
+    logger.info(`  ├── User: ${userId}`);
+    logger.info(`  ├── Status: Sending plan options`);
+    logger.info(`  ├── Permission: pages_messaging`);
+    logger.info(`  └── Action: Displaying subscription plans`);
     
     await messengerService.sendText(userId,
         'To continue using Answer Bot AI, please choose a subscription plan:\n\n' +
@@ -397,16 +679,30 @@ async function sendSubscriptionOptions(userId) {
 // Handle postback events
 async function handlePostback(user, payload) {
     try {
-        logger.info(`🔘 Processing postback for user ${user.messengerId}: ${payload}`);
+        logger.info(`🔘 [POSTBACK PROCESSING]`);
+        logger.info(`  ├── User: ${user.messengerId}`);
+        logger.info(`  ├── Payload: ${payload}`);
+        logger.info(`  ├── Permission: pages_manage_metadata`);
+        logger.info(`  └── Action: Processing button interaction`);
         
         switch (payload) {
             case 'GET_STARTED':
-                logger.info(`🚀 User ${user.messengerId} clicked "Get Started"`);
+                logger.info(`🚀 [GET STARTED CLICKED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Action: Starting onboarding`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Result: Sending welcome message`);
+                
                 await sendWelcomeMessage(user.messengerId);
                 break;
 
             case 'I_AGREE':
-                logger.info(`✅ User ${user.messengerId} accepted terms and conditions`);
+                logger.info(`✅ [TERMS ACCEPTED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Action: Accepting terms`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Result: Moving to phone collection`);
+                
                 user.consentTimestamp = new Date();
                 user.stage = 'awaiting_phone';
                 await user.save();
@@ -418,7 +714,12 @@ async function handlePostback(user, payload) {
                 break;
 
             case 'SUBSCRIBE_WEEKLY':
-                logger.info(`💳 User ${user.messengerId} selected Weekly subscription plan`);
+                logger.info(`💳 [WEEKLY PLAN SELECTED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Action: Selecting weekly plan`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Result: Requesting payment phone`);
+                
                 const planType = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
                 // Save last selected plan type for use after phone collection
                 user.lastSelectedPlanType = planType;
@@ -432,7 +733,12 @@ async function handlePostback(user, payload) {
                 break;
                 
             case 'SUBSCRIBE_MONTHLY':
-                logger.info(`💳 User ${user.messengerId} selected Monthly subscription plan`);
+                logger.info(`💳 [MONTHLY PLAN SELECTED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Action: Selecting monthly plan`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Result: Requesting payment phone`);
+                
                 const planType2 = payload === 'SUBSCRIBE_WEEKLY' ? 'weekly' : 'monthly';
                 // Save last selected plan type for use after phone collection
                 user.lastSelectedPlanType = planType2;
@@ -446,7 +752,12 @@ async function handlePostback(user, payload) {
                 break;
 
             case 'RETRY_NUMBER':
-                logger.info(`🔄 User ${user.messengerId} requested to retry with different number`);
+                logger.info(`🔄 [RETRY NUMBER REQUESTED]`);
+                logger.info(`  ├── User: ${user.messengerId}`);
+                logger.info(`  ├── Action: Retrying with different number`);
+                logger.info(`  ├── Permission: pages_messaging`);
+                logger.info(`  └── Result: Requesting new number`);
+                
                 // Check if user is in payment flow or trial flow
                 if (user.stage === 'awaiting_phone_for_payment') {
                     user.paymentMobileNumber = null;
@@ -467,12 +778,27 @@ async function handlePostback(user, payload) {
 
         }
     } catch (error) {
-        logger.error(`❌ Error processing postback for user ${user.messengerId}:`, error);
+        logger.error('################################');
+        logger.error('### POSTBACK PROCESSING ERROR ###');
+        logger.error('### (pages_manage_metadata) ###');
+        logger.error('################################');
+        logger.error(`❌ [ERROR]`);
+        logger.error(`  ├── Type: Postback processing error`);
+        logger.error(`  ├── User: ${user.messengerId}`);
+        logger.error(`  ├── Payload: ${payload}`);
+        logger.error(`  ├── Permission: pages_manage_metadata`);
+        logger.error(`  └── Details: ${error.message}`);
     }
 }
 
 // Send welcome message
 async function sendWelcomeMessage(userId) {
+    logger.info(`👋 [WELCOME MESSAGE]`);
+    logger.info(`  ├── User: ${userId}`);
+    logger.info(`  ├── Action: Sending welcome message`);
+    logger.info(`  ├── Permission: pages_messaging`);
+    logger.info(`  └── Result: Starting onboarding flow`);
+    
     await messengerService.sendWelcomeMessage(userId);
 }
 
