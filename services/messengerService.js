@@ -101,21 +101,31 @@ Payment via MTN MoMo - no banking details stored
 
 🔒 Your Privacy & Data Security
 
-Strict safeguards:
-• AES-256 encryption for all data
-• Servers located in secure cloud infrastructure
-• Zero third-party data sharing
-• Automatic deletion after 30 days inactivity
-• Delete anytime: Message DELETE MY DATA
+🔒 Strict Safeguards for Your Privacy
+
+• Bank-level security: All chats are encrypted with AES-256.
+• Safe storage: Data stays in secure, monitored cloud servers.
+• No selling data: We never share with advertisers or third parties.
+• Auto-cleanup: Inactive accounts are wiped after 30 days.
+• Full control: Type DELETE MY DATA anytime to erase everything instantly.
+• Quick help: Send HELP for support or privacy info.
+• Extra protection: Access is limited to automated systems only — no human reads your messages.
+• Stay safe tip: Never share personal, financial, or sensitive health details in chat.
 
 ⚖ Terms of Use
+By continuing, you confirm that you:
 
-By proceeding, you agree:
-• Use for personal/educational purposes only
-• AI responses ≠ professional advice
-• No illegal/harmful content
-• Subscription fees non-refundable after access
-• Service may evolve with notice
+✅ Use the service for personal or educational purposes only.
+✅ Understand AI answers are informational only and not professional advice.
+🚫 Will not send illegal, harmful, abusive, or threatening content.
+🚫 Will not send spam, marketing, or sales messages.
+🚫 Will not share personal, sensitive, or financial information in chat.
+🚫 Will not misuse, exploit, or attempt to disrupt the service.
+💳 Agree subscription fees are non-refundable once access is granted.
+🔄 Acknowledge the service may change or improve over time, with prior notice.
+📱 Consent to provide your phone number only for registration, anti-duplication, and payment verification purposes.
+
+Reminder: Keep interactions respectful and safe. Violation of these terms may result in account suspension.
 
 Full compliance with:
 • Meta Platform Terms
@@ -136,7 +146,7 @@ Data Deletion Guide: https://nyamora-digital-gateway.web.app/data-deletion`;
 
 🟢 Consent Required
 
-By tapping "I Agree", you confirm that you have read and accept our Terms, Privacy Policy, and Subscription Conditions. You must agree to use Answer Bot AI.`;
+By tapping "I Agree", you confirm that you have read and accept our Terms, Privacy Policy, Phone Number Consent and Subscription Conditions. You must agree to use Answer Bot AI.`;
 
         // Send exactly two chunks
         await this.sendText(recipientId, welcomeChunk1);
