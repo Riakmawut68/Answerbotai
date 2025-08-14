@@ -63,7 +63,37 @@ class MomoService {
                 );
                 
                 // Send the fake callback to the webhook handler (normal flow)
+                // This ensures the user gets the success message
                 await this.handlePaymentCallback(fakeCallbackData);
+                
+                // IMPORTANT: For bypass, we need to send the success message directly
+                // since we're not going through the webhook route
+                if (fakeCallbackData.status === 'SUCCESSFUL') {
+                    const timezone = require('../utils/timezone');
+                    const expiryDate = timezone.toJubaTime(user.subscription.expiryDate);
+                    
+                    const successMessage = 
+                        '🎉 Payment successful! Your subscription is now active.\n\n' +
+                        '💳 **Plan Details:**\n' +
+                        `• Plan: ${planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan'}\n` +
+                        `• Cost: ${planType === 'weekly' ? '3,000 SSP' : '6,500 SSP'}\n` +
+                        `• Messages: 30 per day\n` +
+                        `• Expires: ${expiryDate.format('YYYY-MM-DD HH:mm:ss')}\n\n` +
+                        '🚀 **What\'s Next:**\n' +
+                        '• Start asking questions immediately\n' +
+                        '• Daily limit resets at midnight (Juba time)\n' +
+                        '• Use \'status\' command to check your usage\n\n' +
+                        'Enjoy using Answer Bot AI! 🤖';
+                    
+                    const messengerService = require('./messengerService');
+                    await messengerService.sendText(user.messengerId, successMessage);
+                    
+                    logger.info('🔓 [BYPASS SUCCESS MESSAGE SENT]', {
+                        user: user.messengerId,
+                        planType,
+                        action: 'Success message sent directly to user after bypass'
+                    });
+                }
                 
                 // Mark result as bypassed for logging
                 result.sandboxBypass = true;
