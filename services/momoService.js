@@ -62,11 +62,15 @@ class MomoService {
                     result.reference
                 );
                 
-                // Process the fake callback through existing webhook logic
-                await this.handlePaymentCallback(fakeCallbackData);
+                // Directly process successful payment since we have the user object
+                await this.processSuccessfulPayment(user);
                 
                 // Mark result as bypassed for logging
                 result.sandboxBypass = true;
+                
+                // Update result to indicate immediate success for bypass
+                result.immediateSuccess = true;
+                result.finalStage = 'subscribed';
             }
 
             return result;
