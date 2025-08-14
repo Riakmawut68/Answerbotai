@@ -110,9 +110,9 @@ Payment via MTN MoMo - no banking details stored
 • Full control: Type DELETE MY DATA anytime to erase everything instantly.
 • Quick help: Send HELP for support or privacy info.
 • Extra protection: Access is limited to automated systems only — no human reads your messages.
-• Stay safe tip: Never share personal, financial, or sensitive health details in chat.
+• Stay safe tip: Never share personal, financial, or sensitive health details in chat.`;
 
-⚖ Terms of Use
+        const welcomeChunk2 = `⚖ Terms of Use
 By continuing, you confirm that you:
 
 ✅ Use the service for personal or educational purposes only.
@@ -135,9 +135,9 @@ Full compliance with:
 📋 Important Links
 Privacy Policy: https://nyamora-digital-gateway.web.app/privacy
 Terms of Service: https://nyamora-digital-gateway.web.app/terms
-Data Deletion Guide: https://nyamora-digital-gateway.web.app/data-deletion`;
+Data Deletion Guide: https://nyamora-digital-gateway.web.app/data-deletion
 
-        const welcomeChunk2 = `📋 Additional Terms
+📋 Additional Terms
 
 • Misuse or violations may lead to access restrictions or bans
 • Subscription fees are non-refundable once access is granted
