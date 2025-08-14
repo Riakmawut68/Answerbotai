@@ -86,7 +86,15 @@ const webhookController = {
             if (body.object === 'page') {
                 for (const entry of body.entry) {
                     for (const event of entry.messaging) {
-                        await handleMessage(event);
+                        // ONLY process message and postback events
+                        if (event.message || event.postback) {
+                            await handleMessage(event);
+                        } else {
+                            logger.info(`⏭️ [SKIPPING SYSTEM EVENT]`);
+                            logger.info(`  ├── Type: ${Object.keys(event)[0]}`);
+                            logger.info(`  ├── User: ${event.sender?.id || 'Unknown'}`);
+                            logger.info(`  └── Action: Event logged but not processed`);
+                        }
                     }
                 }
             }
@@ -175,15 +183,24 @@ const webhookController = {
 // Handle individual messages
 async function handleMessage(event) {
     try {
+        // Skip non-message events (delivery confirmations, read receipts, etc.)
+        if (!event.message && !event.postback) {
+            logger.info(`⏩ [SKIPPING NON-MESSAGE EVENT]`);
+            logger.info(`  ├── Type: ${Object.keys(event).join(', ')}`);
+            logger.info(`  ├── User: ${event.sender?.id || 'Unknown'}`);
+            logger.info(`  └── Action: Event type not supported for processing`);
+            return;
+        }
+
         const senderId = event.sender.id;
         
         // Add duplicate event detection
-        const eventId = event.message?.mid || event.postback?.payload || `unknown_${Date.now()}`;
+        const eventId = event.message?.mid || event.postback?.payload || 'system_event';
         
         logger.info(`👤 [MESSAGE PROCESSING]`);
         logger.info(`  ├── User: ${senderId}`);
         logger.info(`  ├── Event ID: ${eventId}`);
-        logger.info(`  └── Action: Starting message processing`);
+        logger.info(`  └── Action: Processing user interaction`);
 
         // Get or create user
         let user = await User.findOne({ messengerId: senderId });
