@@ -141,11 +141,24 @@ const webhookController = {
                     logger.info(`  ├── Plan: ${user.subscription.planType}`);
                     logger.info(`  └── Action: Sending success notification`);
                     
-                    // Send success message
-                    await messengerService.sendText(user.messengerId,
+                    // Send enhanced success message with subscription details
+                    const timezone = require('../utils/timezone');
+                    const expiryDate = timezone.toJubaTime(user.subscription.expiryDate);
+                    
+                    const successMessage = 
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
-                        'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
-                    );
+                        '💳 **Plan Details:**\n' +
+                        `• Plan: ${user.subscription.planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan'}\n` +
+                        `• Cost: ${user.subscription.amount === 1 ? '3,000 SSP' : '6,500 SSP'}\n` +
+                        `• Messages: 30 per day\n` +
+                        `• Expires: ${expiryDate.format('YYYY-MM-DD HH:mm:ss')}\n\n` +
+                        '🚀 **What\'s Next:**\n' +
+                        '• Start asking questions immediately\n' +
+                        '• Daily limit resets at midnight (Juba time)\n' +
+                        '• Use \'status\' command to check your usage\n\n' +
+                        'Enjoy using Answer Bot AI! 🤖';
+                    
+                    await messengerService.sendText(user.messengerId, successMessage);
 
                     logger.subscriptionActivated(user.messengerId, user.subscription.planType);
                 } else if (user && body.status === 'FAILED') {

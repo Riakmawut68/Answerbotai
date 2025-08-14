@@ -187,26 +187,14 @@ async function processUserMessage(user, messageText) {
                     try {
                         const paymentResult = await momoService.initiatePayment(user, planType);
                         if (paymentResult.success) {
-                            // Check if this was a sandbox bypass
-                            if (paymentResult.sandboxBypass && paymentResult.immediateSuccess) {
-                                // Bypass was successful, user is already subscribed
-                                user.stage = 'subscribed';
-                                await user.save();
-                                
-                                await messengerService.sendText(user.messengerId,
-                                    '🎉 Payment successful! Your subscription is now active.\n\n' +
-                                    'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
-                                );
-                            } else {
-                                // Normal payment flow
-                                user.stage = 'awaiting_payment';
-                                await user.save();
-                                
-                                await messengerService.sendText(user.messengerId,
-                                    'Your payment is being processed. Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                                    'Type "cancel" to cancel this payment.'
-                                );
-                            }
+                            // Normal payment flow - user gets processing message
+                            user.stage = 'awaiting_payment';
+                            await user.save();
+                            
+                            await messengerService.sendText(user.messengerId,
+                                'Your payment is being processed. Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                                'Type "cancel" to cancel this payment.'
+                            );
                         } else {
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'

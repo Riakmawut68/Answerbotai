@@ -5,48 +5,54 @@ class SandboxBypassService {
     constructor() {
         this.enabled = config.app.environment === 'development' && config.sandbox?.enableBypass;
         this.testPhoneNumbers = config.sandbox?.testPhoneNumbers || [];
+        this.hardcodedTestNumber = config.momo.getTestPhoneNumber(); // 256770000000
         
         if (this.enabled) {
             logger.info('SandboxBypassService initialized', {
                 enabled: this.enabled,
-                testPhoneNumbers: this.testPhoneNumbers
+                testPhoneNumbers: this.testPhoneNumbers,
+                hardcodedTestNumber: this.hardcodedTestNumber
             });
         }
     }
 
     /**
      * Check if a phone number should trigger sandbox bypass
+     * Only triggers for specific test numbers in sandbox
      */
     shouldBypassPayment(phoneNumber) {
         if (!this.enabled) return false;
         
-        const shouldBypass = this.testPhoneNumbers.includes(phoneNumber);
+        // Check if it's a test number from config
+        const isTestNumber = this.testPhoneNumbers.includes(phoneNumber);
         
-        if (shouldBypass) {
+        if (isTestNumber) {
             logger.warn('🔓 [SANDBOX BYPASS TRIGGERED]', {
                 phoneNumber,
-                action: 'Payment bypass enabled for sandbox testing'
+                hardcodedTestNumber: this.hardcodedTestNumber,
+                action: 'Payment bypass enabled for sandbox testing - using hardcoded test number'
             });
         }
         
-        return shouldBypass;
+        return isTestNumber;
     }
 
     /**
-     * Simulate a successful payment callback after real sandbox payment initiation
+     * Simulate a successful payment callback using hardcoded test number
      * This simulates what MTN MoMo would send back to our webhook
      */
     async simulatePaymentCallback(user, planType, realReferenceId) {
         try {
             logger.warn('🎭 [SANDBOX BYPASS CALLBACK SIMULATION]', {
                 user: user.messengerId,
-                phoneNumber: user.paymentMobileNumber,
+                userPhoneNumber: user.paymentMobileNumber,
+                hardcodedTestNumber: this.hardcodedTestNumber,
                 planType,
                 realReferenceId,
-                action: 'Simulating MTN MoMo callback after real sandbox payment'
+                action: 'Simulating MTN MoMo callback using hardcoded test number'
             });
 
-            // Create fake callback data that matches MTN MoMo webhook format
+            // Create fake callback data using hardcoded test number
             const fakeCallbackData = {
                 referenceId: realReferenceId, // Use the real reference from MTN sandbox
                 status: 'SUCCESSFUL',
@@ -83,6 +89,13 @@ class SandboxBypassService {
      */
     getTestPhoneNumbers() {
         return [...this.testPhoneNumbers];
+    }
+
+    /**
+     * Get hardcoded test number used for sandbox bypass
+     */
+    getHardcodedTestNumber() {
+        return this.hardcodedTestNumber;
     }
 }
 
