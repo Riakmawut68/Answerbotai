@@ -34,21 +34,17 @@ const connectDB = async () => {
         await mongoose.connect(config.database.uri, config.database.options);
         logger.info('################################');
         logger.info('### DATABASE CONNECTION ###');
-        logger.info('### (pages_manage_metadata) ###');
         logger.info('################################');
         logger.info('✅ [MONGODB CONNECTED]');
         logger.info('  ├── Status: Successfully connected');
         logger.info('  ├── URI: MongoDB Atlas');
-        logger.info('  ├── Permission: pages_manage_metadata');
         logger.info('  └── Action: Database ready for webhooks');
     } catch (error) {
         logger.error('################################');
         logger.error('### DATABASE CONNECTION ERROR ###');
-        logger.error('### (pages_manage_metadata) ###');
         logger.error('################################');
         logger.error('❌ [MONGODB ERROR]');
         logger.error('  ├── Type: Connection failed');
-        logger.error('  ├── Permission: pages_manage_metadata');
         logger.error('  └── Details: Retrying in 5 seconds');
         // Retry connection after 5 seconds
         setTimeout(connectDB, 5000);
@@ -99,14 +95,12 @@ const PORT = config.server.port;
 app.listen(PORT, () => {
     logger.info('################################');
     logger.info('### SERVER STARTUP ###');
-    logger.info('### (pages_manage_metadata) ###');
     logger.info('################################');
     logger.info(`🚀 [SERVER STARTED]`);
     logger.info(`  ├── Port: ${PORT}`);
     logger.info(`  ├── URL: ${config.service.url}`);
     logger.info(`  ├── Environment: ${config.app.environment}`);
     logger.info(`  ├── Version: ${config.app.version}`);
-    logger.info(`  ├── Permission: pages_manage_metadata`);
     logger.info(`  └── Action: Webhook service ready`);
     
     // Log environment variables status
@@ -114,13 +108,11 @@ app.listen(PORT, () => {
     logger.info(`  ├── OpenAI API: ${config.ai.apiKey ? '✅ Configured' : '❌ Missing'}`);
     logger.info(`  ├── SELF_URL: ${config.service.selfUrl ? '✅ Configured' : '❌ Missing'}`);
     logger.info(`  ├── MongoDB: ${config.database.uri ? '✅ Configured' : '❌ Missing'}`);
-    logger.info(`  ├── Permission: pages_manage_metadata`);
     logger.info(`  └── Action: Validating configuration`);
     
     // Start schedulers
     logger.info('🕐 [SCHEDULED TASKS]');
     logger.info('  ├── Status: Starting schedulers');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Initializing background services');
     
     dailyResetScheduler.start();
@@ -129,7 +121,6 @@ app.listen(PORT, () => {
     
     logger.info('✅ [SCHEDULERS STARTED]');
     logger.info('  ├── Status: All schedulers active');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Background services running');
     
     // Start self-ping service if SELF_URL is configured
@@ -137,7 +128,6 @@ app.listen(PORT, () => {
         logger.info(`🔄 [SELF-PING SERVICE]`);
         logger.info(`  ├── Status: Starting self-ping`);
         logger.info(`  ├── URL: ${config.service.selfUrl}`);
-        logger.info(`  ├── Permission: pages_manage_metadata`);
         logger.info(`  └── Action: Keeping service alive`);
         
         // Delay self-ping start to allow service to fully initialize
@@ -147,11 +137,9 @@ app.listen(PORT, () => {
     } else {
         logger.warn('⚠️ [SELF-PING DISABLED]');
         logger.warn('  ├── Status: SELF_URL not configured');
-        logger.warn('  ├── Permission: pages_manage_metadata');
         logger.warn('  └── Action: Self-ping disabled');
         logger.info('💡 [SELF-PING SETUP]');
         logger.info('  ├── Tip: Set SELF_URL environment variable');
-        logger.info('  ├── Permission: pages_manage_metadata');
         logger.info('  └── Action: To enable self-ping service');
     }
 });
@@ -164,7 +152,6 @@ function startSelfPing() {
     logger.info(`🔄 [SELF-PING CONFIGURED]`);
     logger.info(`  ├── URL: ${pingUrl}`);
     logger.info(`  ├── Interval: ${config.service.pingInterval} seconds`);
-    logger.info(`  ├── Permission: pages_manage_metadata`);
     logger.info(`  └── Action: Service monitoring active`);
     
     let pingCount = 0;
@@ -182,7 +169,6 @@ function startSelfPing() {
         try {
             logger.info(`🔄 [SELF-PING STARTING]`);
             logger.info(`  ├── Count: #${pingCount}`);
-            logger.info(`  ├── Permission: pages_manage_metadata`);
             logger.info(`  └── Action: Checking service health`);
             
             const response = await axios.get(pingUrl, { 
@@ -200,14 +186,12 @@ function startSelfPing() {
                 logger.info(`  ├── Status: ${response.status}`);
                 logger.info(`  ├── Uptime: ${response.data.uptime}s`);
                 logger.info(`  ├── Duration: ${duration}ms`);
-                logger.info(`  ├── Permission: pages_manage_metadata`);
                 logger.info(`  └── Action: Service healthy`);
             } else {
                 logger.warn(`⚠️ [SELF-PING WARNING]`);
                 logger.warn(`  ├── Count: #${pingCount}`);
                 logger.warn(`  ├── Status: ${response.status}`);
                 logger.warn(`  ├── Duration: ${duration}ms`);
-                logger.warn(`  ├── Permission: pages_manage_metadata`);
                 logger.warn(`  └── Action: Service responding but with warning`);
             }
         } catch (error) {
@@ -216,7 +200,6 @@ function startSelfPing() {
             logger.error(`  ├── Count: #${pingCount}`);
             logger.error(`  ├── Error: ${error.message}`);
             logger.error(`  ├── Duration: ${duration}ms`);
-            logger.error(`  ├── Permission: pages_manage_metadata`);
             logger.error(`  └── Action: Service health check failed`);
             
             // Log more details for debugging
@@ -236,7 +219,6 @@ function startSelfPing() {
     // Log the interval ID for debugging
     logger.info(`🆔 [SELF-PING INTERVAL]`);
     logger.info(`  ├── ID: ${pingInterval}`);
-    logger.info(`  ├── Permission: pages_manage_metadata`);
     logger.info(`  └── Action: Monitoring service active`);
     
     // Return the interval ID in case we need to clear it later
@@ -247,11 +229,9 @@ function startSelfPing() {
 process.on('SIGTERM', () => {
     logger.info('################################');
     logger.info('### GRACEFUL SHUTDOWN ###');
-    logger.info('### (pages_manage_metadata) ###');
     logger.info('################################');
     logger.info('🛑 [SHUTDOWN INITIATED]');
     logger.info('  ├── Signal: SIGTERM received');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Starting graceful shutdown');
     
     dailyResetScheduler.stop();
@@ -260,19 +240,16 @@ process.on('SIGTERM', () => {
     
     logger.info('🔄 [SCHEDULERS STOPPED]');
     logger.info('  ├── Status: All schedulers stopped');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Background services halted');
     
     mongoose.connection.close().then(() => {
         logger.info('✅ [MONGODB CLOSED]');
         logger.info('  ├── Status: Connection closed successfully');
-        logger.info('  ├── Permission: pages_manage_metadata');
         logger.info('  └── Action: Database connection terminated');
         process.exit(0);
     }).catch((error) => {
         logger.error('❌ [MONGODB CLOSE ERROR]');
         logger.error('  ├── Type: Connection close failed');
-        logger.error('  ├── Permission: pages_manage_metadata');
         logger.error(`  └── Details: ${error.message}`);
         process.exit(1);
     });
@@ -281,11 +258,9 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
     logger.info('################################');
     logger.info('### GRACEFUL SHUTDOWN ###');
-    logger.info('### (pages_manage_metadata) ###');
     logger.info('################################');
     logger.info('🛑 [SHUTDOWN INITIATED]');
     logger.info('  ├── Signal: SIGINT received');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Starting graceful shutdown');
     
     dailyResetScheduler.stop();
@@ -294,19 +269,16 @@ process.on('SIGINT', () => {
     
     logger.info('🔄 [SCHEDULERS STOPPED]');
     logger.info('  ├── Status: All schedulers stopped');
-    logger.info('  ├── Permission: pages_manage_metadata');
     logger.info('  └── Action: Background services halted');
     
     mongoose.connection.close().then(() => {
         logger.info('✅ [MONGODB CLOSED]');
         logger.info('  ├── Status: Connection closed successfully');
-        logger.info('  ├── Permission: pages_manage_metadata');
         logger.info('  └── Action: Database connection terminated');
         process.exit(0);
     }).catch((error) => {
         logger.error('❌ [MONGODB CLOSE ERROR]');
         logger.error('  ├── Type: Connection close failed');
-        logger.error('  ├── Permission: pages_manage_metadata');
         logger.error(`  └── Details: ${error.message}`);
         process.exit(1);
     });

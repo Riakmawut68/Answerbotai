@@ -24,10 +24,25 @@ class MessengerService {
     }
 
     async sendText(recipientId, text) {
+        // Log what the bot is sending for developers
+        const logger = require('../utils/logger');
+        logger.info(`🤖 [BOT RESPONSE]`);
+        logger.info(`  ├── To: ${recipientId}`);
+        logger.info(`  ├── Content: "${text.substring(0, 100) + (text.length > 100 ? '...' : '')}"`);
+        logger.info(`  └── Action: Sending message to user`);
+        
         return this.sendMessage(recipientId, { text });
     }
 
     async sendQuickReplies(recipientId, text, quickReplies) {
+        // Log what the bot is sending for developers
+        const logger = require('../utils/logger');
+        logger.info(`🤖 [BOT QUICK REPLIES]`);
+        logger.info(`  ├── To: ${recipientId}`);
+        logger.info(`  ├── Text: "${text.substring(0, 100) + (text.length > 100 ? '...' : '')}"`);
+        logger.info(`  ├── Options: ${quickReplies.map(qr => qr.title).join(', ')}`);
+        logger.info(`  └── Action: Sending interactive options`);
+        
         return this.sendMessage(recipientId, {
             text,
             quick_replies: quickReplies
@@ -35,6 +50,14 @@ class MessengerService {
     }
 
     async sendButtonTemplate(recipientId, text, buttons) {
+        // Log what the bot is sending for developers
+        const logger = require('../utils/logger');
+        logger.info(`🤖 [BOT BUTTONS]`);
+        logger.info(`  ├── To: ${recipientId}`);
+        logger.info(`  ├── Text: "${text.substring(0, 100) + (text.length > 100 ? '...' : '')}"`);
+        logger.info(`  ├── Buttons: ${buttons.map(btn => btn.title).join(', ')}`);
+        logger.info(`  └── Action: Sending subscription options`);
+        
         return this.sendMessage(recipientId, {
             attachment: {
                 type: 'template',
