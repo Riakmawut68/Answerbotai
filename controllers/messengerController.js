@@ -174,27 +174,30 @@ async function processUserMessage(user, messageText) {
                     user.paymentMobileNumber = mobileValidationPayment.value;
                     await user.save();
                     
-                    // Send payment processing message immediately
-                    await messengerService.sendText(user.messengerId,
-                        '⏳ Your payment is being processed.\n\n' +
-                        'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                        'Type "cancel" to cancel this payment.'
-                    );
-                    
                     // Initiate payment (default to last selected plan, or ask user to select again if not tracked)
                     // For simplicity, default to weekly plan if not tracked
                     let planType = user.lastSelectedPlanType || 'weekly';
                     try {
                         const paymentResult = await momoService.initiatePayment(user, planType);
                         if (paymentResult.success) {
-                            // Normal payment flow - user gets processing message
+                            // ✅ Send payment processing message immediately after successful initiation
+                            await messengerService.sendText(user.messengerId,
+                                '⏳ Your payment is being processed.\n\n' +
+                                'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                                'Type "cancel" to cancel this payment.'
+                            );
+                            
                             user.stage = 'awaiting_payment';
                             await user.save();
                             
-                            await messengerService.sendText(user.messengerId,
-                                'Your payment is being processed. Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                                'Type "cancel" to cancel this payment.'
-                            );
+                            // Check if bypass was triggered and send appropriate follow-up
+                            if (paymentResult.sandboxBypass) {
+                                logger.info(`🔓 [BYPASS DETECTED] User should get success message from webhook handler`);
+                                // Bypass completed, user should get success message from webhook handler
+                            } else {
+                                logger.info(`⏳ [NORMAL FLOW] Waiting for real payment callback`);
+                                // Normal flow - waiting for real payment callback
+                            }
                         } else {
                             await messengerService.sendText(user.messengerId,
                                 'Sorry, there was an error processing your payment request. Please try again in a moment.'

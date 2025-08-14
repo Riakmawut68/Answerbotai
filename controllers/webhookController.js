@@ -391,7 +391,7 @@ async function processUserMessage(user, messageText) {
                             logger.info(`  ├── Reference: ${paymentResult.reference}`);
                             logger.info(`  └── Action: Payment initiated - awaiting completion`);
                             
-                            // ✅ Only send payment processing message when payment request is successful (202 status)
+                            // ✅ Send payment processing message immediately after successful initiation
                             await messengerService.sendText(user.messengerId,
                                 '⏳ Your payment is being processed.\n\n' +
                                 'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
@@ -400,6 +400,15 @@ async function processUserMessage(user, messageText) {
                             
                             user.stage = 'awaiting_payment';
                             await user.save();
+                            
+                            // Check if bypass was triggered and send appropriate follow-up
+                            if (paymentResult.sandboxBypass) {
+                                logger.info(`🔓 [BYPASS DETECTED] Sending success message`);
+                                // Bypass completed, user should get success message from webhook handler
+                            } else {
+                                logger.info(`⏳ [NORMAL FLOW] Waiting for real payment callback`);
+                                // Normal flow - waiting for real payment callback
+                            }
                         } else {
                             logger.error(`❌ [PAYMENT INITIATION FAILED]`);
                             logger.error(`  ├── User: ${user.messengerId}`);

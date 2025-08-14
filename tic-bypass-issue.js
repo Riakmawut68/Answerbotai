@@ -1,0 +1,5 @@
+[33mfde0dfc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: Implement sandbox bypass system with enhanced user experience
+[33md7032d7[m Fix sandbox bypass flow - Direct payment processing instead of webhook callback simulation - Eliminates race condition between user save and callback processing - User state now updates immediately and correctly - Test numbers 0921234567, 0927654321 work properly
+[33m78a7e91[m Add sandbox bypass system for testing premium features - Real sandbox payment initiation + fake callback simulation - Test phone numbers: 0921234567, 0927654321 - Enables full payment flow testing in development environment - Easy to remove when going to production
+[33m2272cb6[m Fix Facebook message length error by reorganizing welcome message chunks - Move privacy section to first chunk, keep terms in second chunk to stay under 2000 character limit
+[33m1372e24[m Update privacy policy and terms of service in messenger service - Enhance privacy safeguards description and clarify terms of use with better formatting and comprehensive guidelines
