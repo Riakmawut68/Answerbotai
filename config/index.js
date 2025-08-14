@@ -59,6 +59,13 @@ const config = {
         version: '1.0.0',
     },
     
+    // Sandbox Bypass Configuration (for testing only)
+    sandbox: {
+        enableBypass: envVars.NODE_ENV === 'development',
+        testPhoneNumbers: ['0921234567', '0927654321'], // Add your test numbers here
+        adminNotification: true
+    },
+    
     // Database
     database: {
         uri: envVars.MONGODB_URI,

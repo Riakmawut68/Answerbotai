@@ -5,6 +5,7 @@ const MomoPayments = require('./momo/momoPayments');
 const MomoApiUser = require('./momo/momoApiUser');
 const logger = require('../utils/logger');
 const User = require('../models/user');
+const SandboxBypassService = require('./sandboxBypassService');
 
 class MomoService {
     constructor() {
@@ -13,6 +14,7 @@ class MomoService {
             this.auth = new MomoAuth(this.config);
             this.payments = new MomoPayments(this.config, this.auth);
             this.apiUser = new MomoApiUser(this.config);
+            this.sandboxBypass = new SandboxBypassService();
             
             logger.info('MomoService initialized successfully', this.config.getDebugInfo());
         } catch (error) {
@@ -24,6 +26,7 @@ class MomoService {
     // Payment Operations
     async initiatePayment(user, planType) {
         try {
+            // Normal payment flow - let real sandbox payment go through
             const result = await this.payments.initiatePayment(user, planType);
             
             // Update user with payment session
@@ -42,6 +45,29 @@ class MomoService {
                 amount: result.amount,
                 reference: result.reference
             });
+
+            // Check for sandbox bypass after successful payment initiation
+            if (user.paymentMobileNumber && this.sandboxBypass.shouldBypassPayment(user.paymentMobileNumber)) {
+                logger.info('🔓 [SANDBOX BYPASS] Simulating callback after real payment initiation', {
+                    user: user.messengerId,
+                    phoneNumber: user.paymentMobileNumber,
+                    planType,
+                    reference: result.reference
+                });
+                
+                // Simulate the callback that MTN would normally send
+                const fakeCallbackData = await this.sandboxBypass.simulatePaymentCallback(
+                    user, 
+                    planType, 
+                    result.reference
+                );
+                
+                // Process the fake callback through existing webhook logic
+                await this.handlePaymentCallback(fakeCallbackData);
+                
+                // Mark result as bypassed for logging
+                result.sandboxBypass = true;
+            }
 
             return result;
         } catch (error) {
