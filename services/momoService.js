@@ -70,8 +70,12 @@ class MomoService {
                 // IMPORTANT: For bypass, we need to send the success message directly
                 // since we're not going through the webhook route
                 if (fakeCallbackData.status === 'SUCCESSFUL') {
+                    // Reload user to get updated subscription data after processSuccessfulPayment
+                    const User = require('../models/user');
+                    const updatedUser = await User.findOne({ messengerId: user.messengerId });
+                    
                     const timezone = require('../utils/timezone');
-                    const expiryDate = timezone.toJubaTime(user.subscription.expiryDate);
+                    const expiryDate = timezone.toJubaTime(updatedUser.subscription.expiryDate);
                     
                     const successMessage = 
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
@@ -92,6 +96,7 @@ class MomoService {
                     logger.info('🔓 [SANDBOX BYPASS COMPLETE] Success message sent, user subscription activated', {
                         user: user.messengerId,
                         planType,
+                        expiryDate: expiryDate.format('YYYY-MM-DD HH:mm:ss'),
                         flow: 'sandbox-bypass',
                         action: 'User can now use bot immediately - no waiting for real payment'
                     });
