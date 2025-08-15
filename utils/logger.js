@@ -1,13 +1,20 @@
 const winston = require('winston');
 const path = require('path');
+const moment = require('moment-timezone');
 
-// Custom format for detailed logging
+// Get Juba timezone from config
+const getJubaTimestamp = () => {
+  return moment().tz('Africa/Juba').format('YYYY-MM-DD HH:mm:ss');
+};
+
+// Custom format for detailed logging with Juba timezone
 const detailedFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.timestamp({ format: getJubaTimestamp }),
   winston.format.errors({ stack: true }),
   winston.format.json(),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    const jubaTime = getJubaTimestamp();
+    let logMessage = `[${jubaTime}] ${level.toUpperCase()}: ${message}`;
     
     // Add metadata if present
     if (Object.keys(meta).length > 0) {
@@ -45,13 +52,14 @@ const logger = winston.createLogger({
   ]
 });
 
-// Console transport for Render logs with enhanced formatting
+// Console transport for Render logs with enhanced formatting (Juba timezone)
 logger.add(new winston.transports.Console({
   format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.timestamp({ format: getJubaTimestamp }),
     winston.format.colorize(),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      let logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+      const jubaTime = getJubaTimestamp();
+      let logMessage = `[${jubaTime}] ${level.toUpperCase()}: ${message}`;
       
       // Add metadata for console output
       if (Object.keys(meta).length > 0) {
@@ -68,7 +76,7 @@ logger.stage = (stage, userId, details = {}) => {
   logger.info(`🎯 STAGE TRANSITION`, {
     stage,
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -77,7 +85,7 @@ logger.userAction = (action, userId, details = {}) => {
   logger.info(`👤 USER ACTION`, {
     action,
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -86,7 +94,7 @@ logger.payment = (event, userId, details = {}) => {
   logger.info(`💳 PAYMENT EVENT`, {
     event,
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -95,7 +103,7 @@ logger.ai = (event, userId, details = {}) => {
   logger.info(`🤖 AI SERVICE`, {
     event,
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -104,7 +112,7 @@ logger.ai = (event, userId, details = {}) => {
 logger.success = (message, userId, details = {}) => {
   logger.info(`✅ SUCCESS: ${message}`, {
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -112,7 +120,7 @@ logger.success = (message, userId, details = {}) => {
 logger.failure = (message, userId, details = {}) => {
   logger.error(`❌ FAILURE: ${message}`, {
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -120,7 +128,7 @@ logger.failure = (message, userId, details = {}) => {
 logger.warning = (message, userId, details = {}) => {
   logger.warn(`⚠️ WARNING: ${message}`, {
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -128,7 +136,7 @@ logger.warning = (message, userId, details = {}) => {
 logger.infoMessage = (message, userId, details = {}) => {
   logger.info(`ℹ️ INFO: ${message}`, {
     userId,
-    timestamp: new Date().toISOString(),
+    timestamp: getJubaTimestamp(),
     ...details
   });
 };
@@ -139,7 +147,7 @@ logger.paymentStart = (userId, planType, amount) => {
     userId,
     planType,
     amount,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
@@ -148,7 +156,7 @@ logger.paymentSuccess = (userId, reference, amount) => {
     userId,
     reference,
     amount,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
@@ -156,14 +164,14 @@ logger.paymentFailed = (userId, reason) => {
   logger.error(`💥 PAYMENT FAILED`, {
     userId,
     reason,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
 logger.paymentCancelled = (userId) => {
   logger.warn(`🚫 PAYMENT CANCELLED`, {
     userId,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
@@ -171,14 +179,14 @@ logger.paymentCancelled = (userId) => {
 logger.userRegistered = (userId) => {
   logger.info(`🆕 NEW USER REGISTERED`, {
     userId,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
 logger.trialStarted = (userId) => {
   logger.info(`🎯 TRIAL STARTED`, {
     userId,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
@@ -186,7 +194,7 @@ logger.trialLimitReached = (userId, messagesUsed) => {
   logger.warn(`🛑 TRIAL LIMIT REACHED`, {
     userId,
     messagesUsed,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
@@ -194,7 +202,7 @@ logger.subscriptionActivated = (userId, planType) => {
   logger.success(`🌟 SUBSCRIPTION ACTIVATED`, {
     userId,
     planType,
-    timestamp: new Date().toISOString()
+    timestamp: getJubaTimestamp()
   });
 };
 
