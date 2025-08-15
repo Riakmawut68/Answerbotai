@@ -21,16 +21,33 @@ class SandboxBypassService {
      * Only triggers for specific test numbers in sandbox
      */
     shouldBypassPayment(phoneNumber) {
-        if (!this.enabled) return false;
+        logger.info('🔍 [BYPASS CHECK]', {
+            phoneNumber,
+            enabled: this.enabled,
+            environment: process.env.NODE_ENV,
+            testPhoneNumbers: this.testPhoneNumbers,
+            hardcodedTestNumber: this.hardcodedTestNumber
+        });
+        
+        if (!this.enabled) {
+            logger.info('❌ [BYPASS DISABLED] Sandbox bypass not enabled for this environment');
+            return false;
+        }
         
         // Check if it's a test number from config
         const isTestNumber = this.testPhoneNumbers.includes(phoneNumber);
         
         if (isTestNumber) {
-            logger.warn('🔓 [SANDBOX BYPASS TRIGGERED]', {
+            logger.warn('🔓 [SANDBOX BYPASS TRIGGERED] Test number detected - payment will auto-complete', {
                 phoneNumber,
                 hardcodedTestNumber: this.hardcodedTestNumber,
+                testPhoneNumbers: this.testPhoneNumbers,
                 action: 'Payment bypass enabled for sandbox testing - using hardcoded test number'
+            });
+        } else {
+            logger.info('✅ [NORMAL PAYMENT] Phone number not in test list - proceeding with real payment', {
+                phoneNumber,
+                testPhoneNumbers: this.testPhoneNumbers
             });
         }
         

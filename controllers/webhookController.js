@@ -376,39 +376,68 @@ async function processUserMessage(user, messageText) {
                     logger.info(`✅ [PAYMENT PHONE REGISTERED]`);
                     logger.info(`  ├── User: ${user.messengerId}`);
                     logger.info(`  ├── Number: ${mobileValidationPayment.value}`);
+                    logger.info(`  ├── Environment: ${process.env.NODE_ENV || 'development'}`);
+                    logger.info(`  ├── Is Test Number: ${config.sandbox?.testPhoneNumbers?.includes(mobileValidationPayment.value) || false}`);
                     logger.info(`  └── Action: Payment phone saved - starting payment`);
                     
                     // Initiate payment first (default to last selected plan, or ask user to select again if not tracked)
                     // For simplicity, default to weekly plan if not tracked
                     let planType = user.lastSelectedPlanType || 'weekly';
                     try {
+                        logger.info(`🔄 [INITIATING PAYMENT]`, {
+                            user: user.messengerId,
+                            planType,
+                            phoneNumber: user.paymentMobileNumber,
+                            environment: process.env.NODE_ENV
+                        });
+                        
                         const paymentResult = await momoService.initiatePayment(user, planType);
-                        if (paymentResult.success) {
-                            logger.info(`🚀 [PAYMENT INITIATED]`);
-                            logger.info(`  ├── User: ${user.messengerId}`);
-                            logger.info(`  ├── Plan: ${planType}`);
-                            logger.info(`  ├── Amount: ${paymentResult.amount}`);
-                            logger.info(`  ├── Reference: ${paymentResult.reference}`);
-                            logger.info(`  └── Action: Payment initiated - awaiting completion`);
-                            
-                            // ✅ Send payment processing message immediately after successful initiation
-                            await messengerService.sendText(user.messengerId,
-                                '⏳ Your payment is being processed.\n\n' +
-                                'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                                'Type "cancel" to cancel this payment.'
-                            );
-                            
-                            user.stage = 'awaiting_payment';
-                            await user.save();
+                        
+                        logger.info(`🚀 [PAYMENT INITIATED]`);
+                        logger.info(`  ├── User: ${user.messengerId}`);
+                        logger.info(`  ├── Plan: ${planType}`);
+                        logger.info(`  ├── Amount: ${paymentResult.amount}`);
+                        logger.info(`  ├── Reference: ${paymentResult.reference}`);
+                        logger.info(`  ├── Sandbox Bypass: ${paymentResult.sandboxBypass || false}`);
+                        logger.info(`  └── Action: Payment initiated - determining flow`);
                             
                             // Check if bypass was triggered and send appropriate follow-up
                             if (paymentResult.sandboxBypass) {
-                                logger.info(`🔓 [BYPASS DETECTED] Sending success message`);
-                                // Bypass completed, user should get success message from webhook handler
+                                logger.info(`🔓 [SANDBOX BYPASS DETECTED] User subscribed instantly - skipping processing message`, {
+                                    user: user.messengerId,
+                                    flow: 'sandbox-bypass',
+                                    action: 'User can start asking questions immediately'
+                                });
+                                // Bypass completed, user already got success message from MomoService
+                                user.stage = 'subscribed'; // Set to subscribed since payment is complete
                             } else {
-                                logger.info(`⏳ [NORMAL FLOW] Waiting for real payment callback`);
-                                // Normal flow - waiting for real payment callback
+                                logger.info(`⏳ [NORMAL PAYMENT FLOW] Waiting for real MTN MoMo callback`, {
+                                    user: user.messengerId,
+                                    flow: 'normal-payment',
+                                    action: 'User must complete payment on phone'
+                                });
+                                // ✅ Send payment processing message only for normal flow
+                                await messengerService.sendText(user.messengerId,
+                                    '⏳ Your payment is being processed.\n\n' +
+                                    'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                                    'Type "cancel" to cancel this payment.'
+                                );
+                                user.stage = 'awaiting_payment';
                             }
+                            
+                            await user.save();
+                            
+                            // Summary log for testing
+                            logger.info(`📊 [PAYMENT FLOW SUMMARY]`, {
+                                user: user.messengerId,
+                                phoneNumber: user.paymentMobileNumber,
+                                planType,
+                                reference: paymentResult.reference,
+                                sandboxBypass: paymentResult.sandboxBypass || false,
+                                userStage: user.stage,
+                                flow: paymentResult.sandboxBypass ? 'instant-completion' : 'awaiting-user-action',
+                                nextStep: paymentResult.sandboxBypass ? 'user-can-ask-questions' : 'user-must-complete-payment-on-phone'
+                            });
                         } else {
                             logger.error(`❌ [PAYMENT INITIATION FAILED]`);
                             logger.error(`  ├── User: ${user.messengerId}`);

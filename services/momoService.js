@@ -48,11 +48,12 @@ class MomoService {
 
             // Check for sandbox bypass after successful payment initiation
             if (user.paymentMobileNumber && this.sandboxBypass.shouldBypassPayment(user.paymentMobileNumber)) {
-                logger.info('🔓 [SANDBOX BYPASS] Simulating callback after real payment initiation', {
+                logger.info('🔓 [SANDBOX BYPASS ACTIVATED] Real payment initiated but will auto-complete for testing', {
                     user: user.messengerId,
                     phoneNumber: user.paymentMobileNumber,
                     planType,
-                    reference: result.reference
+                    reference: result.reference,
+                    flow: 'sandbox-bypass'
                 });
                 
                 // Simulate the callback that MTN would normally send
@@ -88,10 +89,11 @@ class MomoService {
                     const messengerService = require('./messengerService');
                     await messengerService.sendText(user.messengerId, successMessage);
                     
-                    logger.info('🔓 [BYPASS SUCCESS MESSAGE SENT]', {
+                    logger.info('🔓 [SANDBOX BYPASS COMPLETE] Success message sent, user subscription activated', {
                         user: user.messengerId,
                         planType,
-                        action: 'Success message sent directly to user after bypass'
+                        flow: 'sandbox-bypass',
+                        action: 'User can now use bot immediately - no waiting for real payment'
                     });
                 }
                 
