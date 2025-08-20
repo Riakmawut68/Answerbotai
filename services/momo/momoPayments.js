@@ -64,12 +64,15 @@ class MomoPayments {
             };
 
             // Use exact same headers as successful test
+            // Build headers with callback URL for reliable webhooks
+            const callbackUrl = `${this.config.callbackHost.replace(/\/$/, '')}/momo/callback`;
             headers = {
                 'Authorization': `Bearer ${this.auth.token}`,
                 'X-Reference-Id': referenceId,
                 'X-Target-Environment': this.config.targetEnvironment,
                 'Ocp-Apim-Subscription-Key': this.config.subscriptionKey,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Callback-Url': callbackUrl
             };
 
             const response = await axios.post(endpoint, requestBody, {
