@@ -47,6 +47,9 @@ class MomoPayments {
             // Ensure we have a valid token
             await this.auth.getValidToken();
 
+            // Normalize payer MSISDN for production (e.g., 092xxxxxxx -> 21192xxxxxxx)
+            const payerMsisdn = this.formatMSISDN(user.paymentMobileNumber || user.mobileNumber);
+
             // Build request exactly like successful test
             requestBody = {
                 amount: amount.toString(),
@@ -54,7 +57,7 @@ class MomoPayments {
                 externalId: externalId,
                 payer: {
                     partyIdType: 'MSISDN',
-                    partyId: user.paymentMobileNumber || user.mobileNumber
+                    partyId: payerMsisdn
                 },
                 payerMessage: `Answer Bot AI ${planType} subscription`,
                 payeeNote: `${planType} plan for user ${user.messengerId.slice(-8)}`
@@ -222,12 +225,25 @@ class MomoPayments {
         // Remove any non-digit characters
         const cleanNumber = phoneNumber.replace(/\D/g, '');
         
-        // Validate format
+        // Basic numeric validation
         if (!/^\d{8,15}$/.test(cleanNumber)) {
             throw new Error('Invalid phone number format');
         }
 
-        // Return the clean number as-is (don't modify further)
+        // Normalize for production (South Sudan MSISDN): 092xxxxxxx -> 21192xxxxxxx
+        // Keep sandbox/dev unchanged to preserve test flows
+        if (this.config.environment === 'production') {
+            // If already in E.164 for South Sudan, keep as-is
+            if (cleanNumber.startsWith('211')) {
+                return cleanNumber;
+            }
+            // If in local MTN SS format 092XXXXXXX, convert to 21192XXXXXXX
+            if (/^092\d{7}$/.test(cleanNumber)) {
+                return '211' + cleanNumber.slice(1);
+            }
+        }
+
+        // Default: return cleaned number unchanged
         return cleanNumber;
     }
 
