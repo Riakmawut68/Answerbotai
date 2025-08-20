@@ -48,9 +48,13 @@ class MomoConfig {
         this.subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
         this.callbackHost = process.env.CALLBACK_HOST;
         
-        this.baseUrl = this.environment === 'sandbox' 
+        // Prefer explicit env override, else use official defaults
+        // Sandbox: https://sandbox.momodeveloper.mtn.com
+        // Production: https://proxy.momoapi.mtn.com (correct public hostname)
+        const envBaseUrl = process.env.MOMO_BASE_URL;
+        this.baseUrl = envBaseUrl || (this.environment === 'sandbox'
             ? 'https://sandbox.momodeveloper.mtn.com'
-            : 'https://api.momoapi.mtn.com';
+            : 'https://proxy.momoapi.mtn.com');
             
         // Smart Currency & Amount Configuration
         // Frontend always shows SSP prices, backend converts based on environment
@@ -61,6 +65,7 @@ class MomoConfig {
         };
         
         console.log(`MoMo Config initialized for ${this.environment} environment`);
+        console.log(`MoMo Base URL: ${this.baseUrl}`);
     }
 
     isValidUUID(str) {
