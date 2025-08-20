@@ -4,6 +4,7 @@ require('dotenv').config();
 class MomoConfig {
     constructor() {
         this.environment = process.env.MOMO_ENVIRONMENT || 'sandbox';
+        this.targetEnvironment = process.env.MOMO_TARGET_ENVIRONMENT || this.environment;
         this.validateConfiguration();
         this.initializeCredentials();
     }
@@ -83,7 +84,7 @@ class MomoConfig {
         return {
             'Ocp-Apim-Subscription-Key': this.subscriptionKey,
             'Content-Type': 'application/json',
-            'X-Target-Environment': this.environment
+            'X-Target-Environment': this.targetEnvironment
         };
     }
 

@@ -67,7 +67,7 @@ class MomoPayments {
             headers = {
                 'Authorization': `Bearer ${this.auth.token}`,
                 'X-Reference-Id': referenceId,
-                'X-Target-Environment': this.config.environment,
+                'X-Target-Environment': this.config.targetEnvironment,
                 'Ocp-Apim-Subscription-Key': this.config.subscriptionKey,
                 'Content-Type': 'application/json'
             };
