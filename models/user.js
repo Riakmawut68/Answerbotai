@@ -75,6 +75,11 @@ const userSchema = new mongoose.Schema({
     ],
     default: 'initial'
   },
+  lastSelectedPlanType: {
+    type: String,
+    enum: ['weekly', 'monthly'],
+    default: 'weekly'
+  },
   hasUsedTrial: {
     type: Boolean,
     default: false
