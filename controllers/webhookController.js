@@ -88,7 +88,7 @@ const webhookController = {
                     for (const event of entry.messaging) {
                         // ONLY process message and postback events
                         if (event.message || event.postback) {
-                            await handleMessage(event);
+                        await handleMessage(event);
                         } else {
                             logger.info(`⏭️ [SKIPPING SYSTEM EVENT]`);
                             logger.info(`  ├── Type: ${Object.keys(event)[0]}`);
@@ -418,27 +418,27 @@ async function processUserMessage(user, messageText) {
                                         action: 'User must complete payment on phone'
                                     });
                                     // ✅ Send payment processing message only for normal flow
-                                    await messengerService.sendText(user.messengerId,
-                                        '⏳ Your payment is being processed.\n\n' +
-                                        'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
-                                        'Type "cancel" to cancel this payment.'
-                                    );
+                            await messengerService.sendText(user.messengerId,
+                                '⏳ Your payment is being processed.\n\n' +
+                                'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
+                                'Type "cancel" to cancel this payment.'
+                            );
                                     user.stage = 'awaiting_payment';
                                 }
-                                
-                                await user.save();
-                                
+                            
+                            await user.save();
+                            
                                 // Summary log for testing
                                 logger.info(`📊 [PAYMENT FLOW SUMMARY]`, {
                                     user: user.messengerId,
                                     phoneNumber: user.paymentMobileNumber,
-                                    planType,
+                                planType,
                                     reference: paymentResult.reference,
                                     sandboxBypass: paymentResult.sandboxBypass || false,
                                     userStage: user.stage,
                                     flow: paymentResult.sandboxBypass ? 'instant-completion' : 'awaiting-user-action',
                                     nextStep: paymentResult.sandboxBypass ? 'user-can-ask-questions' : 'user-must-complete-payment-on-phone'
-                                });
+                            });
                         } else {
                             logger.error(`❌ [PAYMENT INITIATION FAILED]`);
                             logger.error(`  ├── User: ${user.messengerId}`);

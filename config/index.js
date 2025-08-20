@@ -22,8 +22,9 @@ const envVarsSchema = Joi.object({
     
     // MTN MoMo Configuration
     MOMO_API_USER_ID: Joi.string().uuid().required(),
-    MOMO_API_KEY: Joi.string().uuid().required(),
-    MOMO_SUBSCRIPTION_KEY: Joi.string().uuid().required(),
+    // Accept either UUID-with-dashes or 32-hex (some portals issue 32-hex keys)
+    MOMO_API_KEY: Joi.alternatives().try(Joi.string().uuid(), Joi.string().pattern(/^[0-9a-f]{32}$/i)).required(),
+    MOMO_SUBSCRIPTION_KEY: Joi.alternatives().try(Joi.string().uuid(), Joi.string().pattern(/^[0-9a-f]{32}$/i)).required(),
     MOMO_BASE_URL: Joi.string().uri().default('https://sandbox.momodeveloper.mtn.com'),
     CALLBACK_HOST: Joi.string().uri().required(),
     MOMO_EXTERNAL_ID: Joi.string().optional(),
