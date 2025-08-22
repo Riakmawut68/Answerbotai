@@ -132,11 +132,6 @@ Full compliance with:
 • South Sudan Data Protection Laws
 • MTN MoMo Transaction Policies
 
-📋 Important Links
-Privacy Policy: https://nyamora-digital-gateway.web.app/privacy
-Terms of Service: https://nyamora-digital-gateway.web.app/terms
-Data Deletion Guide: https://nyamora-digital-gateway.web.app/data-deletion
-
 📋 Additional Terms
 
 • Misuse or violations may lead to access restrictions or bans
