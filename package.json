@@ -2,10 +2,10 @@
   "name": "my-messenger-bot",
   "version": "1.0.0",
   "description": "Facebook Messenger Bot with OpenAI integration and MTN MoMo payments",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "clear-db": "node clear-database.js",
     "clear-db-safe": "node clear-database-safe.js",
 
