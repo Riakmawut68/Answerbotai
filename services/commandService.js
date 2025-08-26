@@ -143,27 +143,37 @@ class CommandService {
     async handleStart(user, messageText) {
         logger.info(`User ${user.messengerId} requested restart`);
 
-        // Reset user to initial state
-        user.stage = 'initial';
-        user.consentTimestamp = null;
-        user.mobileNumber = null;
+        // User-safe restart: preserve consent, phone, and any active subscription
+        const hasActiveSubscription = user.subscription && user.subscription.status === 'active';
+        const hasGivenConsent = Boolean(user.consentTimestamp);
+
+        // Always clear transient sessions and reset daily counters
+        user.paymentSession = null;
         user.trialMessagesUsedToday = 0;
         user.dailyMessageCount = 0;
-        user.hasUsedTrial = false;
-        user.trialStartDate = null;
-        user.paymentSession = null;
-        user.subscription = {
-            plan: 'none',
-            status: 'none'
-        };
-        user.markedForDeletion = false;
-        user.deletionRequestedAt = null;
 
+        if (hasActiveSubscription) {
+            user.stage = 'subscribed';
+            await user.save();
+            await messengerService.sendText(user.messengerId,
+                '🔄 Restarted. Your subscription is active — you can start asking questions now.\n\nType "help" to see commands.'
+            );
+            return { success: true, action: 'restart' };
+        }
+
+        if (hasGivenConsent) {
+            user.stage = 'trial';
+            await user.save();
+            await messengerService.sendText(user.messengerId,
+                '🔄 Restarted. You can continue using your trial.\n\nType "help" to see commands.'
+            );
+            return { success: true, action: 'restart' };
+        }
+
+        // New user or no consent yet: start onboarding from the beginning
+        user.stage = 'initial';
         await user.save();
-
-        // Send welcome message
         await messengerService.sendWelcomeMessage(user.messengerId);
-
         return { success: true, action: 'restart' };
     }
 

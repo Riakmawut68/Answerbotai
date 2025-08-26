@@ -17,7 +17,7 @@ async function connectDB() {
 // Clear all users from the database
 async function clearDatabase() {
     try {
-        const User = require('./models/User');
+        const User = require('./models/user');
         
         // Count current users
         const userCount = await User.countDocuments();

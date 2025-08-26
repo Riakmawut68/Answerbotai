@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 class MessengerService {
     constructor() {
         this.pageAccessToken = process.env.PAGE_ACCESS_TOKEN;
-        this.apiVersion = 'v17.0'; // Update this as needed
+        this.apiVersion = 'v19.0'; // Use a recent stable Graph API version
         this.baseUrl = `https://graph.facebook.com/${this.apiVersion}/me/messages`;
     }
 

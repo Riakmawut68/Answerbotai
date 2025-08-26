@@ -50,6 +50,13 @@ const webhookController = {
                 for (const entry of body.entry) {
                     if (entry.messaging && entry.messaging.length > 0) {
                         for (const event of entry.messaging) {
+                            // Skip echoes and system messages early in the log phase
+                            if (event.message?.is_echo || event.message?.app_id) {
+                                logger.info(`⏭️ [SKIPPING ECHO]`);
+                                logger.info(`  ├── User: ${event.sender?.id || 'Unknown'}`);
+                                logger.info(`  └── Reason: Echo or app-generated message`);
+                                continue;
+                            }
                             // Log event type with specific actions
                             if (event.message) {
                                 logger.info(`📨 [MESSAGE RECEIVED]`);
@@ -86,9 +93,13 @@ const webhookController = {
             if (body.object === 'page') {
                 for (const entry of body.entry) {
                     for (const event of entry.messaging) {
+                        // Ignore echoes and non-user events
+                        if (event.message?.is_echo || event.message?.app_id) {
+                            continue;
+                        }
                         // ONLY process message and postback events
                         if (event.message || event.postback) {
-                        await handleMessage(event);
+                            await handleMessage(event);
                         } else {
                             logger.info(`⏭️ [SKIPPING SYSTEM EVENT]`);
                             logger.info(`  ├── Type: ${Object.keys(event)[0]}`);
