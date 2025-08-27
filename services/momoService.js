@@ -6,6 +6,7 @@ const MomoApiUser = require('./momo/momoApiUser');
 const logger = require('../utils/logger');
 const User = require('../models/user');
 const SandboxBypassService = require('./sandboxBypassService');
+const PaymentRequest = require('../models/paymentRequest');
 
 class MomoService {
     constructor() {
@@ -28,6 +29,16 @@ class MomoService {
         try {
             // Normal payment flow - let real sandbox payment go through
             const result = await this.payments.initiatePayment(user, planType);
+
+            // Persist durable mapping for callbacks
+            await PaymentRequest.create({
+                referenceId: result.reference,
+                externalId: result.externalId,
+                messengerId: user.messengerId,
+                planType,
+                amount: result.amount,
+                status: 'pending'
+            });
             
             // Update user with payment session
             user.paymentSession = {
@@ -148,11 +159,11 @@ class MomoService {
 
     async handlePaymentCallback(callbackData, req = null) {
         try {
-            // Attempt to resolve missing referenceId using externalId if provided
+            // Attempt to resolve missing referenceId using externalId via durable mapping
             if (!callbackData.referenceId && callbackData.externalId) {
-                const userByExternal = await User.findOne({ 'paymentSession.externalId': callbackData.externalId });
-                if (userByExternal?.paymentSession?.reference) {
-                    callbackData.referenceId = userByExternal.paymentSession.reference;
+                const pr = await PaymentRequest.findOne({ externalId: callbackData.externalId });
+                if (pr?.referenceId) {
+                    callbackData.referenceId = pr.referenceId;
                 }
             }
 
@@ -161,10 +172,14 @@ class MomoService {
                 throw new Error('Invalid callback data: missing referenceId or status');
             }
 
-            // Find user by payment reference
-            const user = await User.findOne({
-                'paymentSession.reference': callbackData.referenceId
-            });
+            // Find user by payment reference (or via PaymentRequest fallback)
+            let user = await User.findOne({ 'paymentSession.reference': callbackData.referenceId });
+            if (!user) {
+                const pr = await PaymentRequest.findOne({ referenceId: callbackData.referenceId });
+                if (pr?.messengerId) {
+                    user = await User.findOne({ messengerId: pr.messengerId });
+                }
+            }
 
             if (!user) {
                 logger.error('User not found for payment callback', { 
@@ -175,6 +190,12 @@ class MomoService {
 
             // Process the callback
             const result = await this.payments.handlePaymentCallback(callbackData);
+
+            // Persist status on PaymentRequest
+            await PaymentRequest.updateOne(
+                { referenceId: result.reference },
+                { status: result.status, reason: callbackData.reason || undefined, rawCallback: callbackData }
+            );
             
             // Update user payment session
             if (user.paymentSession) {

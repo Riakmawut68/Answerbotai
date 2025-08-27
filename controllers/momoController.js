@@ -3,6 +3,7 @@ const User = require('../models/user');
 const messengerService = require('../services/messengerService');
 const MomoService = require('../services/momoService');
 const momoService = new MomoService();
+const PaymentRequest = require('../models/paymentRequest');
 
 const momoController = {
     // Handle payment callbacks from MTN MoMo
@@ -25,9 +26,16 @@ const momoController = {
             // Process the callback asynchronously
             // If referenceId missing but we have externalId, try to resolve to the stored reference
             if (!normalized.referenceId && normalized.externalId) {
-                const userByExternal = await User.findOne({ 'paymentSession.externalId': normalized.externalId });
-                if (userByExternal?.paymentSession?.reference) {
-                    normalized.referenceId = userByExternal.paymentSession.reference;
+                // Try durable mapping first
+                const pr = await PaymentRequest.findOne({ externalId: normalized.externalId });
+                if (pr?.referenceId) {
+                    normalized.referenceId = pr.referenceId;
+                } else {
+                    // Fallback to active paymentSession
+                    const userByExternal = await User.findOne({ 'paymentSession.externalId': normalized.externalId });
+                    if (userByExternal?.paymentSession?.reference) {
+                        normalized.referenceId = userByExternal.paymentSession.reference;
+                    }
                 }
             }
 
