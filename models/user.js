@@ -93,6 +93,7 @@ const userSchema = new mongoose.Schema({
     startTime: Date,
     status: String,
     reference: String,
+    externalId: String,
     processedAt: Date
   },
   markedForDeletion: {

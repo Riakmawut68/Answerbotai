@@ -8,22 +8,38 @@ const momoController = {
     // Handle payment callbacks from MTN MoMo
     handlePaymentCallback: async (req, res) => {
         try {
-            const { body } = req;
+            const { body, headers } = req;
             logger.info('💰 Payment callback received:', body);
+
+            // Normalize callback data: MTN may omit referenceId in body; use header X-Reference-Id
+            const referenceId = body.referenceId || headers['x-reference-id'] || headers['X-Reference-Id'];
+            const status = body.status;
+            const reason = body.reason;
+            const externalId = body.externalId;
+
+            const normalized = { referenceId, status, reason, externalId };
 
             // Acknowledge receipt to MTN immediately
             res.status(200).json({ status: 'OK' });
 
             // Process the callback asynchronously
-            const result = await momoService.handlePaymentCallback(body);
+            // If referenceId missing but we have externalId, try to resolve to the stored reference
+            if (!normalized.referenceId && normalized.externalId) {
+                const userByExternal = await User.findOne({ 'paymentSession.externalId': normalized.externalId });
+                if (userByExternal?.paymentSession?.reference) {
+                    normalized.referenceId = userByExternal.paymentSession.reference;
+                }
+            }
+
+            const result = await momoService.handlePaymentCallback(normalized, req);
             
             if (result.success) {
                 // Find user by payment reference to send notification
                 const user = await User.findOne({ 
-                    'paymentSession.reference': body.referenceId 
+                    'paymentSession.reference': normalized.referenceId 
                 });
 
-                if (user && body.status === 'SUCCESSFUL') {
+                if (user && normalized.status === 'SUCCESSFUL') {
                     // Send success message
                     await messengerService.sendText(user.messengerId,
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
@@ -31,10 +47,12 @@ const momoController = {
                     );
 
                     logger.subscriptionActivated(user.messengerId, 'weekly');
-                } else if (user && body.status === 'FAILED') {
+                } else if (user && normalized.status === 'FAILED') {
                     // Send failure message
-                    await messengerService.sendText(user.messengerId,
-                        '❌ Payment failed. You can continue using your trial messages or try subscribing again later.'
+                    const failureReason = normalized.reason ? ` Reason: ${normalized.reason}` : '';
+                    await messengerService.sendText(
+                        user.messengerId,
+                        `❌ Payment failed.${failureReason}\nYou can continue using your trial messages or try subscribing again later.`
                     );
                     
                     logger.paymentFailed(user.messengerId, 'Payment failed');

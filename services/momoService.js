@@ -35,7 +35,8 @@ class MomoService {
                 amount: result.amount,
                 startTime: new Date(),
                 status: 'pending',
-                reference: result.reference
+                reference: result.reference,
+                externalId: result.externalId
             };
             await user.save();
 
@@ -147,6 +148,14 @@ class MomoService {
 
     async handlePaymentCallback(callbackData, req = null) {
         try {
+            // Attempt to resolve missing referenceId using externalId if provided
+            if (!callbackData.referenceId && callbackData.externalId) {
+                const userByExternal = await User.findOne({ 'paymentSession.externalId': callbackData.externalId });
+                if (userByExternal?.paymentSession?.reference) {
+                    callbackData.referenceId = userByExternal.paymentSession.reference;
+                }
+            }
+
             // Validate callback data
             if (!callbackData.referenceId || !callbackData.status) {
                 throw new Error('Invalid callback data: missing referenceId or status');
