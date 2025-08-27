@@ -40,32 +40,41 @@ const momoController = {
             }
 
             const result = await momoService.handlePaymentCallback(normalized, req);
-            
-            if (result.success) {
-                // Find user by payment reference to send notification
-                const user = await User.findOne({ 
-                    'paymentSession.reference': normalized.referenceId 
-                });
 
-                if (user && normalized.status === 'SUCCESSFUL') {
+            // Always attempt to notify the user based on callback status
+            // Find user by payment reference to send notification
+            let user = await User.findOne({ 
+                'paymentSession.reference': normalized.referenceId 
+            });
+            let messengerIdForNotify = null;
+            let prForNotify = null;
+            if (!user) {
+                prForNotify = await PaymentRequest.findOne({ referenceId: normalized.referenceId });
+                if (prForNotify?.messengerId) {
+                    messengerIdForNotify = prForNotify.messengerId;
+                    user = await User.findOne({ messengerId: messengerIdForNotify });
+                }
+            }
+
+                if ((user || messengerIdForNotify) && normalized.status === 'SUCCESSFUL') {
                     // Send success message
-                    await messengerService.sendText(user.messengerId,
+                    await messengerService.sendText((user ? user.messengerId : messengerIdForNotify),
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
                         'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
                     );
 
                     logger.subscriptionActivated(user.messengerId, 'weekly');
-                } else if (user && normalized.status === 'FAILED') {
+                } else if ((user || messengerIdForNotify) && normalized.status === 'FAILED') {
                     // Send failure message
                     const failureReason = normalized.reason ? ` Reason: ${normalized.reason}` : '';
                     await messengerService.sendText(
-                        user.messengerId,
+                        (user ? user.messengerId : messengerIdForNotify),
                         `❌ Payment failed.${failureReason}\nYou can continue using your trial messages or try subscribing again later.`
                     );
                     
                     logger.paymentFailed(user.messengerId, 'Payment failed');
                 }
-            }
+            
 
         } catch (error) {
             logger.error('❌ Error handling payment callback:', error);
