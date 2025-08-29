@@ -7,6 +7,7 @@ const momoService = new MomoService();
 const commandService = require('../services/commandService');
 const Validators = require('../utils/validators');
 const config = require('../config');
+const { getUserSummary, incAI } = require('../utils/metrics');
 
 const webhookController = {
     // Verify webhook for Facebook
@@ -100,6 +101,20 @@ const webhookController = {
                         // ONLY process message and postback events
                         if (event.message || event.postback) {
                             await handleMessage(event);
+                            // Log per-user metrics snapshot after handling
+                            try {
+                                const userId = event.sender?.id;
+                                if (userId) {
+                                    const summary = getUserSummary(userId);
+                                    logger.info(`📊 [USER METRICS]`, {
+                                        userId,
+                                        graph: summary.graph,
+                                        ai: summary.ai
+                                    });
+                                }
+                            } catch (e) {
+                                logger.warn('Failed to log user metrics snapshot', { error: e.message });
+                            }
                         } else {
                             logger.info(`⏭️ [SKIPPING SYSTEM EVENT]`);
                             logger.info(`  ├── Type: ${Object.keys(event)[0]}`);
@@ -598,8 +613,15 @@ async function processUserMessage(user, messageText) {
 
         try {
             // Generate AI response with consistent formatting instructions
-            const aiResponse = await aiService.generateUserResponse(messageText);
-            
+            let aiResponse;
+            try {
+                aiResponse = await aiService.generateUserResponse(messageText);
+                incAI(user.messengerId, { success: true });
+            } catch (e) {
+                incAI(user.messengerId, { success: false });
+                throw e;
+            }
+
             // Send response to user
             await messengerService.sendText(user.messengerId, aiResponse);
             

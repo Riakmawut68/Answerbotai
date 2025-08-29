@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const { incGraph } = require('../utils/metrics');
 
 class MessengerService {
     constructor() {
@@ -31,7 +32,14 @@ class MessengerService {
         logger.info(`  ├── Content: "${text.substring(0, 100) + (text.length > 100 ? '...' : '')}"`);
         logger.info(`  └── Action: Sending message to user`);
         
-        return this.sendMessage(recipientId, { text });
+        try {
+            const result = await this.sendMessage(recipientId, { text });
+            incGraph(recipientId, 'text');
+            return result;
+        } catch (e) {
+            incGraph(recipientId, 'text'); // still count the attempt
+            throw e;
+        }
     }
 
     async sendQuickReplies(recipientId, text, quickReplies) {
@@ -43,10 +51,17 @@ class MessengerService {
         logger.info(`  ├── Options: ${quickReplies.map(qr => qr.title).join(', ')}`);
         logger.info(`  └── Action: Sending interactive options`);
         
-        return this.sendMessage(recipientId, {
+        try {
+            const result = await this.sendMessage(recipientId, {
             text,
             quick_replies: quickReplies
         });
+            incGraph(recipientId, 'quickReplies');
+            return result;
+        } catch (e) {
+            incGraph(recipientId, 'quickReplies');
+            throw e;
+        }
     }
 
     async sendButtonTemplate(recipientId, text, buttons) {
@@ -58,7 +73,8 @@ class MessengerService {
         logger.info(`  ├── Buttons: ${buttons.map(btn => btn.title).join(', ')}`);
         logger.info(`  └── Action: Sending subscription options`);
         
-        return this.sendMessage(recipientId, {
+        try {
+            const result = await this.sendMessage(recipientId, {
             attachment: {
                 type: 'template',
                 payload: {
@@ -68,6 +84,12 @@ class MessengerService {
                 }
             }
         });
+            incGraph(recipientId, 'buttonTemplate');
+            return result;
+        } catch (e) {
+            incGraph(recipientId, 'buttonTemplate');
+            throw e;
+        }
     }
 
     async sendWelcomeMessage(recipientId) {
