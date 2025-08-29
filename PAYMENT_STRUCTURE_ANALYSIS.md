@@ -81,7 +81,7 @@ sandbox.enableBypass: true
 
 **Characteristics:**
 - Sandbox bypass enabled for test numbers
-- Payments use EUR currency (1 EUR = 3000 SSP, 2 EUR = 6500 SSP)
+- Payments use EUR currency (1 EUR = 4000 SSP, 2 EUR = 10000 SSP)
 - Enhanced logging for debugging
 - MTN sandbox API endpoints
 - Test phone number: `256770000000` (hardcoded)
@@ -106,7 +106,7 @@ sandbox.enableBypass: false
 | Environment | Display | Payment Currency | Weekly | Monthly |
 |-------------|---------|------------------|--------|---------|
 | Development | SSP     | EUR             | 1 EUR  | 2 EUR   |
-| Production  | SSP     | SSP             | 3000   | 6500    |
+| Production  | SSP     | SSP             | 4000   | 10000   |
 
 ## 4. Complete Message Catalog
 
@@ -369,7 +369,7 @@ services:
 | **MTN API** | Sandbox (EUR) | Production (SSP) |
 | **Sandbox Bypass** | ✅ Enabled | ❌ Disabled |
 | **Test Numbers** | Auto-complete | Normal flow |
-| **Payment Amounts** | 1-2 EUR | 3000-6500 SSP |
+| **Payment Amounts** | 1-2 EUR | 4000-10000 SSP |
 | **Logging Level** | Verbose debugging | Production optimized |
 | **Message Flow** | Bypass skips processing | All messages sent |
 

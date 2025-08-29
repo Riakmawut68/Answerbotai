@@ -302,19 +302,19 @@ async function processUserMessage(user, messageText) {
 async function sendSubscriptionOptions(userId) {
     await messengerService.sendText(userId,
         'To continue using Answer Bot AI, please choose a subscription plan:\n\n' +
-        '- 3,000 SSP Weekly: 30 messages/day, standard features\n' +
-        '- 6,500 SSP Monthly: 30 messages/day, extended features & priority service'
+        '- 4,000 SSP Weekly: 30 messages/day, standard features\n' +
+        '- 10,000 SSP Monthly: 30 messages/day, extended features & priority service'
     );
 
     const buttons = [
         {
             type: 'postback',
-            title: 'Weekly Plan 3,000 SSP',
+            title: 'Weekly Plan 4,000 SSP',
             payload: 'SUBSCRIBE_WEEKLY'
         },
         {
             type: 'postback',
-            title: 'Monthly Plan 6,500 SSP',
+            title: 'Monthly Plan 10,000 SSP',
             payload: 'SUBSCRIBE_MONTHLY'
         }
     ];

@@ -123,8 +123,8 @@ const config = {
         // Frontend always shows SSP prices, backend converts based on environment
         displayCurrency: 'SSP', // What users see in frontend
         displayAmounts: {
-            weekly: 3000,   // Always show 3,000 SSP
-            monthly: 6500   // Always show 6,500 SSP
+            weekly: 4000,   // Always show 4,000 SSP
+            monthly: 10000   // Always show 10,000 SSP
         },
         
         // Backend payment amounts (converted based on environment)
@@ -136,7 +136,7 @@ const config = {
             if (this.environment === 'sandbox') {
                 // Sandbox: Convert SSP to EUR for testing
                 const sspAmount = this.displayAmounts[planType];
-                return sspAmount === 3000 ? 1 : 2; // 3000 SSP → 1 EUR, 6500 SSP → 2 EUR
+                return sspAmount === 4000 ? 1 : 2; // 4000 SSP → 1 EUR, 10000 SSP → 2 EUR
             } else {
                 // Production: Use actual SSP amounts
                 return this.displayAmounts[planType];
@@ -173,8 +173,8 @@ const config = {
         trialMessagesPerDay: 3,
         subscriptionMessagesPerDay: 30,
         subscriptionPlans: {
-            weekly: { price: 3000, duration: 7 },
-            monthly: { price: 6500, duration: 30 }
+            weekly: { price: 4000, duration: 7 },
+            monthly: { price: 10000, duration: 30 }
         }
     },
     
