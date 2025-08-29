@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
-const { incGraph } = require('../utils/metrics');
+const { incGraph, pruneAndCount } = require('../utils/metrics');
+const limitService = require('./limitService');
 
 class MessengerService {
     constructor() {
@@ -9,8 +10,22 @@ class MessengerService {
         this.baseUrl = `https://graph.facebook.com/${this.apiVersion}/me/messages`;
     }
 
-    async sendMessage(recipientId, message) {
+    async sendMessage(recipientId, message, userCtx) {
         try {
+            // Enforce per-user Graph/hour before sending
+            if (userCtx && userCtx.__userDoc) {
+                const { limited, count, cap } = (function(){
+                    const check = limitService.checkLimit(userCtx.__userDoc, 'graph');
+                    return { limited: check.limited, count: check.count, cap: check.cap };
+                })();
+                if (limited) {
+                    // If limited, suppress send and surface a soft error
+                    const err = new Error('Graph per-hour limit exceeded');
+                    err.code = 'GRAPH_RATE_LIMIT';
+                    err.details = { count, cap };
+                    throw err;
+                }
+            }
             const response = await axios.post(this.baseUrl, {
                 recipient: { id: recipientId },
                 message: message
@@ -24,7 +39,7 @@ class MessengerService {
         }
     }
 
-    async sendText(recipientId, text) {
+    async sendText(recipientId, text, userCtx) {
         // Log what the bot is sending for developers
         const logger = require('../utils/logger');
         logger.info(`🤖 [BOT RESPONSE]`);
@@ -33,7 +48,7 @@ class MessengerService {
         logger.info(`  └── Action: Sending message to user`);
         
         try {
-            const result = await this.sendMessage(recipientId, { text });
+            const result = await this.sendMessage(recipientId, { text }, userCtx);
             incGraph(recipientId, 'text');
             return result;
         } catch (e) {
@@ -42,7 +57,7 @@ class MessengerService {
         }
     }
 
-    async sendQuickReplies(recipientId, text, quickReplies) {
+    async sendQuickReplies(recipientId, text, quickReplies, userCtx) {
         // Log what the bot is sending for developers
         const logger = require('../utils/logger');
         logger.info(`🤖 [BOT QUICK REPLIES]`);
@@ -55,7 +70,7 @@ class MessengerService {
             const result = await this.sendMessage(recipientId, {
             text,
             quick_replies: quickReplies
-        });
+        }, userCtx);
             incGraph(recipientId, 'quickReplies');
             return result;
         } catch (e) {
@@ -64,7 +79,7 @@ class MessengerService {
         }
     }
 
-    async sendButtonTemplate(recipientId, text, buttons) {
+    async sendButtonTemplate(recipientId, text, buttons, userCtx) {
         // Log what the bot is sending for developers
         const logger = require('../utils/logger');
         logger.info(`🤖 [BOT BUTTONS]`);
@@ -83,7 +98,7 @@ class MessengerService {
                     buttons
                 }
             }
-        });
+        }, userCtx);
             incGraph(recipientId, 'buttonTemplate');
             return result;
         } catch (e) {
@@ -92,7 +107,7 @@ class MessengerService {
         }
     }
 
-    async sendWelcomeMessage(recipientId) {
+    async sendWelcomeMessage(recipientId, userCtx) {
         const welcomeChunk1 = `👋 Welcome to Answer Bot AI!
 
 Your trusted educational assistant powered by advanced AI - designed for South Sudanese learners and professionals.
@@ -166,8 +181,8 @@ Full compliance with:
 By tapping "I Agree", you confirm that you have read and accept our Terms, Privacy Policy, Phone Number Consent and Subscription Conditions. You must agree to use Answer Bot AI.`;
 
         // Send exactly two chunks
-        await this.sendText(recipientId, welcomeChunk1);
-        await this.sendText(recipientId, welcomeChunk2);
+        await this.sendText(recipientId, welcomeChunk1, userCtx);
+        await this.sendText(recipientId, welcomeChunk2, userCtx);
 
         // Send consent button only
         const buttons = [
@@ -181,6 +196,7 @@ By tapping "I Agree", you confirm that you have read and accept our Terms, Priva
         return this.sendButtonTemplate(recipientId,
             "🟢 By clicking \"I Agree\", you confirm that you've read and accepted our Terms, Privacy Policy, and Subscription Conditions.",
             buttons
+        , userCtx
         );
     }
 

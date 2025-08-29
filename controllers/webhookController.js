@@ -7,6 +7,7 @@ const momoService = new MomoService();
 const commandService = require('../services/commandService');
 const Validators = require('../utils/validators');
 const config = require('../config');
+const limitService = require('../services/limitService');
 const { getUserSummary, incAI } = require('../utils/metrics');
 
 const webhookController = {
@@ -252,7 +253,7 @@ async function handleMessage(event) {
             user = new User({ messengerId: senderId });
             await user.save();
             // Send welcome message for new users
-            await sendWelcomeMessage(senderId);
+            await sendWelcomeMessage(senderId, { __userDoc: user });
             return;
         }
 
@@ -341,7 +342,7 @@ async function processUserMessage(user, messageText) {
                         await messengerService.sendText(user.messengerId, 
                             '⚠️ This MTN number has already been used for a free trial.\n\n' +
                             'Please try a different number or subscribe to unlock full access.'
-                        );
+                        , { __userDoc: user });
                                                  const buttons = [
                              {
                                  type: 'postback',
@@ -362,6 +363,7 @@ async function processUserMessage(user, messageText) {
                         await messengerService.sendButtonTemplate(user.messengerId, 
                             'Choose an option to continue:', 
                             buttons
+                        , { __userDoc: user }
                         );
                     } else {
                         logger.info(`✅ [PHONE REGISTERED]`);
@@ -377,7 +379,7 @@ async function processUserMessage(user, messageText) {
                         await messengerService.sendText(user.messengerId, 
                             '✅ Your number has been registered. You can now use your daily free trial of 3 messages.\n\n' +
                             'Try asking me anything!'
-                        );
+                        , { __userDoc: user });
                     }
                 } else {
                     logger.info(`❌ [INVALID PHONE]`);
@@ -388,7 +390,7 @@ async function processUserMessage(user, messageText) {
                     
                     await messengerService.sendText(user.messengerId, 
                         `❌ ${mobileValidation.error}`
-                    );
+                    , { __userDoc: user });
                 }
                 return;
 
@@ -448,7 +450,7 @@ async function processUserMessage(user, messageText) {
                                 '⏳ Your payment is being processed.\n\n' +
                                 'Please check your phone for a payment prompt. Complete the transaction within 15 minutes.\n\n' +
                                 'Type "cancel" to cancel this payment.'
-                            );
+                            , { __userDoc: user });
                                     user.stage = 'awaiting_payment';
                                 }
                             
@@ -505,7 +507,7 @@ async function processUserMessage(user, messageText) {
                 logger.info(`  ├── Status: Awaiting payment completion`);
                 logger.info(`  └── Action: Sending payment reminder`);
                 
-                await messengerService.sendText(user.messengerId, 'Please complete your payment to continue.');
+                await messengerService.sendText(user.messengerId, 'Please complete your payment to continue.', { __userDoc: user });
                 return;
 
             case 'trial':
@@ -520,7 +522,7 @@ async function processUserMessage(user, messageText) {
                     logger.info(`  ├── Limit: ${config.limits.subscriptionMessagesPerDay}`);
                     logger.info(`  └── Action: Sending limit reached message`);
                     
-                    await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
+                    await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!', { __userDoc: user });
                     return;
                 }
                 break;
@@ -531,7 +533,7 @@ async function processUserMessage(user, messageText) {
                 logger.info(`  ├── Status: Subscription expired`);
                 logger.info(`  └── Action: Sending renewal prompt`);
                 
-                await messengerService.sendText(user.messengerId, 'Your subscription has expired. Please renew to continue using the service.');
+                await messengerService.sendText(user.messengerId, 'Your subscription has expired. Please renew to continue using the service.', { __userDoc: user });
                 await sendSubscriptionOptions(user.messengerId);
                 return;
         }
@@ -553,13 +555,30 @@ async function processUserMessage(user, messageText) {
                 // Block message and show expiry message
                 await messengerService.sendText(user.messengerId, 
                     'Your subscription has expired. Please renew to continue using the service.'
-                );
+                , { __userDoc: user });
                 await sendSubscriptionOptions(user.messengerId);
                 return;
             }
         }
 
-        // Check message limits
+        // Check hourly AI limit BEFORE consuming quotas
+        const aiCheckEarly = limitService.checkLimit(user, 'ai');
+        if (aiCheckEarly.limited) {
+            const canNotifyEarly = limitService.shouldNotify(user);
+            logger.warn(`⚠️ [AI RATE LIMITED - EARLY CHECK]`, { user: user.messengerId, count: aiCheckEarly.count, cap: aiCheckEarly.cap });
+            if (canNotifyEarly) {
+                try {
+                    await messengerService.sendText(user.messengerId,
+                        'You have reached your hourly limit. Please try again later or consider subscribing for higher limits.',
+                        { __userDoc: user }
+                    );
+                } catch (_) { /* swallow if Graph limited */ }
+                limitService.markNotified(user);
+            }
+            return; // Do not increment trial/daily counters
+        }
+
+        // Check message limits (daily/subscription)
         logger.info(`📊 [MESSAGE LIMITS CHECK]`);
         logger.info(`  ├── User: ${user.messengerId}`);
         logger.info(`  ├── Plan: ${user.subscription.planType}`);
@@ -578,7 +597,7 @@ async function processUserMessage(user, messageText) {
                 logger.trialLimitReached(user.messengerId, user.trialMessagesUsedToday);
                 await messengerService.sendText(user.messengerId, 
                     '🛑 You\'ve reached your daily free trial limit. Subscribe for premium access!'
-                );
+                , { __userDoc: user });
                 await sendSubscriptionOptions(user.messengerId);
                 return;
             }
@@ -612,6 +631,22 @@ async function processUserMessage(user, messageText) {
         logger.info(`  └── Action: Calling OpenAI API`);
 
         try {
+            // Enforce AI/hour limit before calling AI
+            const aiCheck = limitService.checkLimit(user, 'ai');
+            if (aiCheck.limited) {
+                const canNotify = limitService.shouldNotify(user);
+                logger.warn(`⚠️ [AI RATE LIMITED]`, { user: user.messengerId, count: aiCheck.count, cap: aiCheck.cap });
+                if (canNotify) {
+                    try {
+                        await messengerService.sendText(user.messengerId,
+                            'You have reached your hourly limit. Please try again later or consider subscribing for higher limits.',
+                            { __userDoc: user }
+                        );
+                    } catch (_) { /* swallow if Graph is also limited */ }
+                    limitService.markNotified(user);
+                }
+                return; // Do not call AI; do not change trial counters further
+            }
             // Generate AI response with consistent formatting instructions
             let aiResponse;
             try {
@@ -623,7 +658,15 @@ async function processUserMessage(user, messageText) {
             }
 
             // Send response to user
-            await messengerService.sendText(user.messengerId, aiResponse);
+            try {
+                await messengerService.sendText(user.messengerId, aiResponse, { __userDoc: user });
+            } catch (err) {
+                if (err && err.code === 'GRAPH_RATE_LIMIT') {
+                    logger.warn('Graph send suppressed due to per-hour limit', { user: user.messengerId, details: err.details });
+                    return;
+                }
+                throw err;
+            }
             
             logger.info(`✅ [AI RESPONSE SENT]`);
             logger.info(`  ├── User: ${user.messengerId}`);
@@ -792,13 +835,13 @@ async function handlePostback(user, payload) {
 }
 
 // Send welcome message
-async function sendWelcomeMessage(userId) {
+async function sendWelcomeMessage(userId, ctx) {
     logger.info(`👋 [WELCOME MESSAGE]`);
     logger.info(`  ├── User: ${userId}`);
     logger.info(`  ├── Action: Sending welcome message`);
     logger.info(`  └── Result: Onboarding flow initiated`);
     
-    await messengerService.sendWelcomeMessage(userId);
+    await messengerService.sendWelcomeMessage(userId, ctx);
 }
 
 module.exports = webhookController;

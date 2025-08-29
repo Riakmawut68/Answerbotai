@@ -18,6 +18,12 @@ function getUser(userId) {
                 success: 0,
                 failure: 0
             }
+            ,
+            timestamps: {
+                graph: [], // array of ms timestamps
+                ai: []     // array of ms timestamps
+            },
+            lastNoticeAt: 0
         });
     }
     return countersByUser.get(userId);
@@ -31,12 +37,14 @@ function incGraph(userId, type) {
     } else {
         u.graph.other += 1;
     }
+    u.timestamps.graph.push(Date.now());
 }
 
 function incAI(userId, { success }) {
     const u = getUser(userId);
     u.ai.total += 1;
     if (success) u.ai.success += 1; else u.ai.failure += 1;
+    u.timestamps.ai.push(Date.now());
 }
 
 function getUserSummary(userId) {
@@ -47,10 +55,34 @@ function getUserSummary(userId) {
     };
 }
 
+function pruneAndCount(userId, kind, windowMs) {
+    const u = getUser(userId);
+    const now = Date.now();
+    const arr = kind === 'graph' ? u.timestamps.graph : u.timestamps.ai;
+    // prune
+    while (arr.length && (now - arr[0]) > windowMs) {
+        arr.shift();
+    }
+    return arr.length;
+}
+
+function setLastNotice(userId, whenMs) {
+    const u = getUser(userId);
+    u.lastNoticeAt = whenMs;
+}
+
+function getLastNotice(userId) {
+    const u = getUser(userId);
+    return u.lastNoticeAt || 0;
+}
+
 module.exports = {
     incGraph,
     incAI,
-    getUserSummary
+    getUserSummary,
+    pruneAndCount,
+    setLastNotice,
+    getLastNotice
 };
 
 

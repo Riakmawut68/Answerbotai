@@ -34,6 +34,14 @@ const envVarsSchema = Joi.object({
     SELF_URL: Joi.string().uri().default('https://answerbotai.onrender.com'),
     ENCRYPTION_KEY: Joi.string().optional(),
     LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
+
+    // Per-user hourly rate limits (sliding window)
+    RATE_WINDOW_MS: Joi.number().default(60 * 60 * 1000),
+    FREEMIUM_AI_PER_HOUR: Joi.number().default(3),
+    FREEMIUM_GRAPH_PER_HOUR: Joi.number().default(10),
+    PREMIUM_AI_PER_HOUR: Joi.number().default(20),
+    PREMIUM_GRAPH_PER_HOUR: Joi.number().default(30),
+    RATE_LIMIT_NOTICE_COOLDOWN_MS: Joi.number().default(10 * 60 * 1000),
 }).unknown().required();
 
 // Validate environment variables
@@ -58,6 +66,20 @@ const config = {
     app: {
         environment: envVars.NODE_ENV,
         version: '1.0.0',
+    },
+
+    // Per-user hourly limits
+    perUserLimits: {
+        windowMs: envVars.RATE_WINDOW_MS,
+        freemium: {
+            aiPerHour: envVars.FREEMIUM_AI_PER_HOUR,
+            graphPerHour: envVars.FREEMIUM_GRAPH_PER_HOUR,
+        },
+        premium: {
+            aiPerHour: envVars.PREMIUM_AI_PER_HOUR,
+            graphPerHour: envVars.PREMIUM_GRAPH_PER_HOUR,
+        },
+        noticeCooldownMs: envVars.RATE_LIMIT_NOTICE_COOLDOWN_MS,
     },
     
     // Sandbox Bypass Configuration (for testing only)
