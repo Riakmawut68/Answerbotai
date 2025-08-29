@@ -37,7 +37,7 @@ const envVarsSchema = Joi.object({
 
     // Per-user hourly rate limits (sliding window)
     PER_USER_LIMITS_ENABLED: Joi.boolean().default(true),
-    GENERAL_GRAPH_PER_HOUR: Joi.number().default(30),
+    GENERAL_GRAPH_PER_HOUR: Joi.number().default(50),
     RATE_WINDOW_MS: Joi.number().default(60 * 60 * 1000),
     FREEMIUM_AI_PER_HOUR: Joi.number().default(3),
     FREEMIUM_GRAPH_PER_HOUR: Joi.number().default(10),
@@ -162,7 +162,7 @@ const config = {
     rateLimit: {
         windowMs: 10 * 60 * 1000, // 10 minutes
         max: 60, // limit each IP to 60 requests per windowMs
-        message: 'Too many requests from this IP, please try again later.',
+        message: 'You\'ve used the bot a lot in the last hour. Please take a break and come back in an hour.',
     },
     
     // Timezone (Juba, South Sudan)
