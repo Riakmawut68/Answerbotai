@@ -24,9 +24,16 @@ app.set('trust proxy', 1);
 // Apply general rate limiting
 app.use(generalLimiter);
 
-// Body parser middleware
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+// Body parser middleware with raw body capture for signature verification
+app.use(bodyParser.json({
+    limit: '10mb',
+    verify: (req, res, buf) => { req.rawBody = buf; }
+}));
+app.use(bodyParser.urlencoded({
+    extended: true,
+    limit: '10mb',
+    verify: (req, res, buf) => { req.rawBody = buf; }
+}));
 
 // MongoDB Connection with retry logic
 const connectDB = async () => {

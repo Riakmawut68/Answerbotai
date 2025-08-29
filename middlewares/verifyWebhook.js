@@ -26,9 +26,10 @@ function verifyWebhook(req, res, next) {
     const elements = signature.split('=');
     const signatureHash = elements[1];
     
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
     const expectedHash = crypto
       .createHmac('sha256', process.env.FB_APP_SECRET)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest('hex');
 
     if (signatureHash !== expectedHash) {
