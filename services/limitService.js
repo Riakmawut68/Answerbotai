@@ -1,21 +1,18 @@
 const config = require('../config');
 const { pruneAndCount, getLastNotice, setLastNotice } = require('../utils/metrics');
 
-function getCapsForUser(user) {
-    const isPremium = user.subscription && user.subscription.status === 'active' && user.subscription.planType !== 'none';
-    const caps = isPremium ? config.perUserLimits.premium : config.perUserLimits.freemium;
+function getCapsForUser() {
     return {
         windowMs: config.perUserLimits.windowMs,
-        aiPerHour: caps.aiPerHour,
-        graphPerHour: caps.graphPerHour,
+        graphPerHour: config.perUserLimits.generalGraphPerHour,
         noticeCooldownMs: config.perUserLimits.noticeCooldownMs
     };
 }
 
 function checkLimit(user, kind) {
-    const { windowMs } = getCapsForUser(user);
+    const { windowMs, graphPerHour } = getCapsForUser();
     const count = pruneAndCount(user.messengerId, kind, windowMs);
-    const cap = kind === 'ai' ? getCapsForUser(user).aiPerHour : getCapsForUser(user).graphPerHour;
+    const cap = kind === 'graph' ? graphPerHour : Number.MAX_SAFE_INTEGER; // AI unlimited
     return { count, cap, limited: count >= cap };
 }
 

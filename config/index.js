@@ -36,6 +36,8 @@ const envVarsSchema = Joi.object({
     LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
 
     // Per-user hourly rate limits (sliding window)
+    PER_USER_LIMITS_ENABLED: Joi.boolean().default(true),
+    GENERAL_GRAPH_PER_HOUR: Joi.number().default(30),
     RATE_WINDOW_MS: Joi.number().default(60 * 60 * 1000),
     FREEMIUM_AI_PER_HOUR: Joi.number().default(3),
     FREEMIUM_GRAPH_PER_HOUR: Joi.number().default(10),
@@ -70,15 +72,9 @@ const config = {
 
     // Per-user hourly limits
     perUserLimits: {
+        enabled: envVars.PER_USER_LIMITS_ENABLED,
         windowMs: envVars.RATE_WINDOW_MS,
-        freemium: {
-            aiPerHour: envVars.FREEMIUM_AI_PER_HOUR,
-            graphPerHour: envVars.FREEMIUM_GRAPH_PER_HOUR,
-        },
-        premium: {
-            aiPerHour: envVars.PREMIUM_AI_PER_HOUR,
-            graphPerHour: envVars.PREMIUM_GRAPH_PER_HOUR,
-        },
+        generalGraphPerHour: envVars.GENERAL_GRAPH_PER_HOUR,
         noticeCooldownMs: envVars.RATE_LIMIT_NOTICE_COOLDOWN_MS,
     },
     

@@ -12,14 +12,13 @@ class MessengerService {
 
     async sendMessage(recipientId, message, userCtx) {
         try {
-            // Enforce per-user Graph/hour before sending
-            if (userCtx && userCtx.__userDoc) {
+            // Enforce general Graph/hour limit (per-user)
+            if (userCtx && userCtx.__userDoc && require('../config').perUserLimits.enabled) {
                 const { limited, count, cap } = (function(){
                     const check = limitService.checkLimit(userCtx.__userDoc, 'graph');
                     return { limited: check.limited, count: check.count, cap: check.cap };
                 })();
                 if (limited) {
-                    // If limited, suppress send and surface a soft error
                     const err = new Error('Graph per-hour limit exceeded');
                     err.code = 'GRAPH_RATE_LIMIT';
                     err.details = { count, cap };

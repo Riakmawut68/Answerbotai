@@ -561,22 +561,7 @@ async function processUserMessage(user, messageText) {
             }
         }
 
-        // Check hourly AI limit BEFORE consuming quotas
-        const aiCheckEarly = limitService.checkLimit(user, 'ai');
-        if (aiCheckEarly.limited) {
-            const canNotifyEarly = limitService.shouldNotify(user);
-            logger.warn(`⚠️ [AI RATE LIMITED - EARLY CHECK]`, { user: user.messengerId, count: aiCheckEarly.count, cap: aiCheckEarly.cap });
-            if (canNotifyEarly) {
-                try {
-                    await messengerService.sendText(user.messengerId,
-                        'You have reached your hourly limit. Please try again later or consider subscribing for higher limits.',
-                        { __userDoc: user }
-                    );
-                } catch (_) { /* swallow if Graph limited */ }
-                limitService.markNotified(user);
-            }
-            return; // Do not increment trial/daily counters
-        }
+        // Hourly AI limit disabled (was here)
 
         // Check message limits (daily/subscription)
         logger.info(`📊 [MESSAGE LIMITS CHECK]`);
@@ -631,22 +616,7 @@ async function processUserMessage(user, messageText) {
         logger.info(`  └── Action: Calling OpenAI API`);
 
         try {
-            // Enforce AI/hour limit before calling AI
-            const aiCheck = limitService.checkLimit(user, 'ai');
-            if (aiCheck.limited) {
-                const canNotify = limitService.shouldNotify(user);
-                logger.warn(`⚠️ [AI RATE LIMITED]`, { user: user.messengerId, count: aiCheck.count, cap: aiCheck.cap });
-                if (canNotify) {
-                    try {
-                        await messengerService.sendText(user.messengerId,
-                            'You have reached your hourly limit. Please try again later or consider subscribing for higher limits.',
-                            { __userDoc: user }
-                        );
-                    } catch (_) { /* swallow if Graph is also limited */ }
-                    limitService.markNotified(user);
-                }
-                return; // Do not call AI; do not change trial counters further
-            }
+            // AI calls are not rate-limited (Graph only)
             // Generate AI response with consistent formatting instructions
             let aiResponse;
             try {

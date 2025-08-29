@@ -44,6 +44,7 @@ function incAI(userId, { success }) {
     const u = getUser(userId);
     u.ai.total += 1;
     if (success) u.ai.success += 1; else u.ai.failure += 1;
+    // AI calls are tracked but not rate-limited; keep timestamps if needed
     u.timestamps.ai.push(Date.now());
 }
 
