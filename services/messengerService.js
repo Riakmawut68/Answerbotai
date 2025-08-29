@@ -130,8 +130,8 @@ Premium Benefits (After trial):
 • Extended topic coverage
 
 Subscription Plans:
-Weekly: 3,000 SSP (30 messages/day)
-Monthly: 6,500 SSP (30 messages/day)
+Weekly: 4,000 SSP (30 messages/day)
+Monthly: 10,000 SSP (30 messages/day)
 
 Payment via MTN MoMo - no banking details stored
 
