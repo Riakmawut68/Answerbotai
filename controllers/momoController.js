@@ -57,22 +57,61 @@ const momoController = {
             }
 
                 if ((user || messengerIdForNotify) && normalized.status === 'SUCCESSFUL') {
-                    // Send success message
-                    await messengerService.sendText((user ? user.messengerId : messengerIdForNotify),
-                        '🎉 Payment successful! Your subscription is now active.\n\n' +
-                        'You can now send up to 30 messages per day. Enjoy using Answer Bot AI!'
-                    );
+                    const notifyMessengerId = user ? user.messengerId : messengerIdForNotify;
+                    logger.info('✅ Payment successful - notifying user', {
+                        referenceId: normalized.referenceId,
+                        status: normalized.status,
+                        messengerId: notifyMessengerId
+                    });
+                    // Build rich success message when we have the user and subscription details
+                    let successText;
+                    if (user && user.subscription && user.subscription.status === 'active') {
+                        const timezone = require('../utils/timezone');
+                        const expiryMoment = timezone.toJubaTime(user.subscription.expiryDate);
+                        const planLabel = user.subscription.planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan';
+                        // Some code paths store display amounts separately; fall back to config display if needed
+                        const config = require('../config');
+                        const displayAmount = user.subscription.amount || (user.subscription.planType === 'weekly' ? config.momo.displayAmounts.weekly : config.momo.displayAmounts.monthly);
+                        const displayCurrency = config.momo.displayCurrency;
 
-                    logger.subscriptionActivated(user.messengerId, 'weekly');
+                        successText =
+                            '🎉 Payment successful! Your subscription is now active.\n\n' +
+                            '💳 **Plan Details:**\n' +
+                            `• Plan: ${planLabel}\n` +
+                            `• Cost: ${displayAmount.toLocaleString()} ${displayCurrency}\n` +
+                            '• Messages: 30 per day\n' +
+                            `• Expires: ${expiryMoment.format('YYYY-MM-DD HH:mm:ss')}\n\n` +
+                            '🚀 **What\'s Next:**\n' +
+                            '• Start asking questions immediately\n' +
+                            '• Daily limit resets at midnight (Juba time)\n' +
+                            '• Use \'status\' command to check your usage\n\n' +
+                            'Enjoy using Answer Bot AI! 🤖';
+                    } else {
+                        // Fallback minimal message if we cannot compute rich details
+                        successText = '🎉 Payment successful! Your subscription is now active. You can now send up to 30 messages per day. Enjoy using Answer Bot AI!';
+                    }
+
+                    await messengerService.sendText(notifyMessengerId, successText);
+
+                    if (user) {
+                        logger.subscriptionActivated(user.messengerId, user.subscription?.planType || 'unknown');
+                    }
                 } else if ((user || messengerIdForNotify) && normalized.status === 'FAILED') {
-                    // Send failure message
+                    const notifyMessengerId = user ? user.messengerId : messengerIdForNotify;
                     const failureReason = normalized.reason ? ` Reason: ${normalized.reason}` : '';
+                    logger.info('❌ Payment failed - notifying user', {
+                        referenceId: normalized.referenceId,
+                        status: normalized.status,
+                        reason: normalized.reason || null,
+                        messengerId: notifyMessengerId
+                    });
                     await messengerService.sendText(
-                        (user ? user.messengerId : messengerIdForNotify),
+                        notifyMessengerId,
                         `❌ Payment failed.${failureReason}\nYou can continue using your trial messages or try subscribing again later.`
                     );
-                    
-                    logger.paymentFailed(user.messengerId, 'Payment failed');
+                    if (user) {
+                        logger.paymentFailed(user.messengerId, 'Payment failed');
+                    }
                 }
             
 

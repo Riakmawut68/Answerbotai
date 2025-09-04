@@ -9,8 +9,7 @@
     "clear-db": "node clear-database.js",
     "clear-db-safe": "node clear-database-safe.js",
 
-    "test-payment": "node test-momo-payment-flow.js",
-    "test-integration": "node test-payment-integration.js",
+    "test-momo-callback": "node scripts/testMomoCallbackController.js",
     "setup-momo": "node scripts/setupMomoApiUser.js",
     "check-env": "node -e \"require('./config')\""
   },
