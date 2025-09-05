@@ -102,6 +102,12 @@ class MomoPayments {
             }
 
         } catch (error) {
+            // Redact sensitive headers before logging
+            const safeHeaders = headers ? { ...headers } : undefined;
+            if (safeHeaders && safeHeaders.Authorization) {
+                safeHeaders.Authorization = 'REDACTED';
+            }
+
             logger.error('Payment initiation failed', {
                 referenceId,
                 externalId,
@@ -112,7 +118,7 @@ class MomoPayments {
                 status: error.response?.status,
                 data: error.response?.data,
                 requestBody: requestBody,
-                headers: headers
+                headers: safeHeaders
             });
 
             throw new Error(`Payment initiation failed: ${error.message}`);

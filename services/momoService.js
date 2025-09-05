@@ -85,15 +85,21 @@ class MomoService {
                     // Reload user to get updated subscription data after processSuccessfulPayment
                     const User = require('../models/user');
                     const updatedUser = await User.findOne({ messengerId: user.messengerId });
-                    
+
                     const timezone = require('../utils/timezone');
                     const expiryDate = timezone.toJubaTime(updatedUser.subscription.expiryDate);
-                    
-                    const successMessage = 
+
+                    // Use configured display amounts and currency (4,000 / 10,000 SSP)
+                    const displayAmount = planType === 'weekly'
+                        ? this.config.displayAmounts.weekly
+                        : this.config.displayAmounts.monthly;
+                    const displayCurrency = this.config.displayCurrency;
+
+                    const successMessage =
                         '🎉 Payment successful! Your subscription is now active.\n\n' +
                         '💳 **Plan Details:**\n' +
                         `• Plan: ${planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan'}\n` +
-                        `• Cost: ${planType === 'weekly' ? '3,000 SSP' : '6,500 SSP'}\n` +
+                        `• Cost: ${displayAmount.toLocaleString()} ${displayCurrency}\n` +
                         `• Messages: 30 per day\n` +
                         `• Expires: ${expiryDate.format('YYYY-MM-DD HH:mm:ss')}\n\n` +
                         '🚀 **What\'s Next:**\n' +
@@ -101,7 +107,7 @@ class MomoService {
                         '• Daily limit resets at midnight (Juba time)\n' +
                         '• Use \'status\' command to check your usage\n\n' +
                         'Enjoy using Answer Bot AI! 🤖';
-                    
+
                     const messengerService = require('./messengerService');
                     await messengerService.sendText(user.messengerId, successMessage);
                     

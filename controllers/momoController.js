@@ -39,6 +39,22 @@ const momoController = {
                 }
             }
 
+            // Idempotency guard: if we've already processed a final state, skip re-processing
+            try {
+                const existing = await PaymentRequest.findOne({ referenceId: normalized.referenceId });
+                const isFinal = existing && (existing.status === 'SUCCESSFUL' || existing.status === 'FAILED');
+                const incomingFinal = normalized.status === 'SUCCESSFUL' || normalized.status === 'FAILED';
+                if (existing && isFinal && incomingFinal && normalized.status === existing.status) {
+                    logger.info('⏭️ Duplicate final callback received - skipping re-processing', {
+                        referenceId: normalized.referenceId,
+                        status: normalized.status
+                    });
+                    return; // Already handled identical final state
+                }
+            } catch (e) {
+                logger.warn('Idempotency check failed; proceeding with normal handling', { error: e.message });
+            }
+
             const result = await momoService.handlePaymentCallback(normalized, req);
 
             // Always attempt to notify the user based on callback status
@@ -69,9 +85,9 @@ const momoController = {
                         const timezone = require('../utils/timezone');
                         const expiryMoment = timezone.toJubaTime(user.subscription.expiryDate);
                         const planLabel = user.subscription.planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan';
-                        // Some code paths store display amounts separately; fall back to config display if needed
+                        // Always use configured display amounts (4,000/10,000 SSP)
                         const config = require('../config');
-                        const displayAmount = user.subscription.amount || (user.subscription.planType === 'weekly' ? config.momo.displayAmounts.weekly : config.momo.displayAmounts.monthly);
+                        const displayAmount = user.subscription.planType === 'weekly' ? config.momo.displayAmounts.weekly : config.momo.displayAmounts.monthly;
                         const displayCurrency = config.momo.displayCurrency;
 
                         successText =
