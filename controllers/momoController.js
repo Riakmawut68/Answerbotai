@@ -49,7 +49,68 @@ const momoController = {
                         referenceId: normalized.referenceId,
                         status: normalized.status
                     });
-                    return; // Already handled identical final state
+                    // Ensure user still gets notification even if already processed by quick-poll path
+                    if (normalized.status === 'FAILED' || normalized.status === 'SUCCESSFUL') {
+                        try {
+                            let notifyMessengerId = null;
+                            let user = await User.findOne({ 'paymentSession.reference': normalized.referenceId });
+                            if (!user) {
+                                const pr = await PaymentRequest.findOne({ referenceId: normalized.referenceId });
+                                if (pr?.messengerId) {
+                                    notifyMessengerId = pr.messengerId;
+                                    user = await User.findOne({ messengerId: notifyMessengerId });
+                                }
+                            } else {
+                                notifyMessengerId = user.messengerId;
+                            }
+
+                            if (user || notifyMessengerId) {
+                                const idToNotify = user ? user.messengerId : notifyMessengerId;
+                                if (normalized.status === 'FAILED') {
+                                    const failureReason = normalized.reason ? ` Reason: ${normalized.reason}` : '';
+                                    await messengerService.sendText(
+                                        idToNotify,
+                                        `❌ Payment failed.${failureReason}\nYou can continue using your trial messages or try subscribing again later.`
+                                    );
+                                    if (user) {
+                                        logger.paymentFailed(user.messengerId, 'Payment failed (duplicate final callback)');
+                                    }
+                                } else if (normalized.status === 'SUCCESSFUL') {
+                                    // Build success message using configured display amounts
+                                    const config = require('../config');
+                                    let successText;
+                                    if (user && user.subscription && user.subscription.status === 'active') {
+                                        const timezone = require('../utils/timezone');
+                                        const expiryMoment = timezone.toJubaTime(user.subscription.expiryDate);
+                                        const planLabel = user.subscription.planType === 'weekly' ? 'Weekly Plan' : 'Monthly Plan';
+                                        const displayAmount = user.subscription.planType === 'weekly' ? config.momo.displayAmounts.weekly : config.momo.displayAmounts.monthly;
+                                        const displayCurrency = config.momo.displayCurrency;
+                                        successText =
+                                            '🎉 Payment successful! Your subscription is now active.\n\n' +
+                                            '💳 **Plan Details:**\n' +
+                                            `• Plan: ${planLabel}\n` +
+                                            `• Cost: ${displayAmount.toLocaleString()} ${displayCurrency}\n` +
+                                            '• Messages: 30 per day\n' +
+                                            `• Expires: ${expiryMoment.format('YYYY-MM-DD HH:mm:ss')}\n\n` +
+                                            '🚀 **What\'s Next:**\n' +
+                                            '• Start asking questions immediately\n' +
+                                            '• Daily limit resets at midnight (Juba time)\n' +
+                                            '• Use \'status\' command to check your usage\n\n' +
+                                            'Enjoy using Answer Bot AI! 🤖';
+                                    } else {
+                                        successText = '🎉 Payment successful! Your subscription is now active. You can now send up to 30 messages per day. Enjoy using Answer Bot AI!';
+                                    }
+                                    await messengerService.sendText(idToNotify, successText);
+                                    if (user) {
+                                        logger.subscriptionActivated(user.messengerId, user.subscription?.planType || 'unknown');
+                                    }
+                                }
+                            }
+                        } catch (notifyErr) {
+                            logger.warn('Failed to send failure notification for duplicate final callback', { error: notifyErr.message });
+                        }
+                    }
+                    return; // Already handled identical final state (processing skipped, notification handled as needed)
                 }
             } catch (e) {
                 logger.warn('Idempotency check failed; proceeding with normal handling', { error: e.message });

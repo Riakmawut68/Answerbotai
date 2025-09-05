@@ -124,25 +124,7 @@ class MomoService {
                 result.sandboxBypass = true;
             }
 
-            // Quick post-init polling to surface early outcomes even if webhook delays
-            try {
-                const pollDelaysMs = [0, 10000, 30000];
-                for (const delay of pollDelaysMs) {
-                    if (delay > 0) await new Promise(r => setTimeout(r, delay));
-                    const status = await this.checkPaymentStatus(result.reference);
-                    if (status.success && (status.successful || status.status === 'FAILED')) {
-                        // Create a synthetic callback-like object to reuse existing handler
-                        const callbackData = {
-                            referenceId: result.reference,
-                            status: status.status
-                        };
-                        await this.handlePaymentCallback(callbackData);
-                        break;
-                    }
-                }
-            } catch (pollError) {
-                logger.warn('Post-init quick polling encountered an issue', { error: pollError.message });
-            }
+            // Note: Removed quick post-init polling; MTN webhook is the single source of truth
 
             return result;
         } catch (error) {
