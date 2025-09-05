@@ -13,6 +13,14 @@ const paymentRequestSchema = new mongoose.Schema({
 
 paymentRequestSchema.index({ externalId: 1 });
 
+// Optional TTL retention: set PAYMENT_REQUEST_TTL_DAYS to auto-expire old records
+// Mongo requires this to be a Date field index; we use createdAt
+const ttlDays = parseInt(process.env.PAYMENT_REQUEST_TTL_DAYS, 10);
+if (!isNaN(ttlDays) && ttlDays > 0) {
+  const seconds = ttlDays * 24 * 60 * 60;
+  paymentRequestSchema.index({ createdAt: 1 }, { expireAfterSeconds: seconds });
+}
+
 module.exports = mongoose.model('PaymentRequest', paymentRequestSchema);
 
 

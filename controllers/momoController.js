@@ -184,7 +184,7 @@ const momoController = {
                     });
                     await messengerService.sendText(
                         notifyMessengerId,
-                        `❌ Payment failed.${failureReason}\nYou can continue using your trial messages or try subscribing again later.`
+                        `❌ Payment failed.${failureReason}\nYou can continue using your trial messages by sending any message, or try subscribing again later. Your trial resets tomorrow.`
                     );
                     if (user) {
                         logger.paymentFailed(user.messengerId, 'Payment failed');

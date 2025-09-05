@@ -17,12 +17,14 @@ const subscriptionCheckerScheduler = require('./schedulers/subscriptionChecker')
 const paymentTimeoutScheduler = require('./schedulers/paymentTimeout');
 
 const app = express();
+const { metricsMiddleware, getSnapshot } = require('./middlewares/metrics');
 
 // Trust proxy for rate limiting behind load balancers (Render, etc.)
 app.set('trust proxy', 1);
 
-// Apply general rate limiting
+// Apply general rate limiting and lightweight metrics
 app.use(generalLimiter);
+app.use(metricsMiddleware);
 
 // Body parser middleware with raw body capture for signature verification
 app.use(bodyParser.json({
@@ -72,6 +74,18 @@ app.get('/health', healthCheckLimiter, (req, res) => {
     });
 });
 
+// Metrics endpoint (log-based ops, simple snapshot)
+app.get('/metrics', healthCheckLimiter, async (req, res) => {
+    try {
+        const User = require('./models/user');
+        const snapshot = await getSnapshot(User);
+        res.status(200).json(snapshot);
+    } catch (e) {
+        logger.error('Metrics endpoint error', { error: e.message });
+        res.status(500).json({ error: 'metrics_failed' });
+    }
+});
+
 // Test ping endpoint (for manual testing)
 app.get('/ping', healthCheckLimiter, (req, res) => {
     logger.info('🔔 Manual ping received from external request');
@@ -86,8 +100,9 @@ app.get('/ping', healthCheckLimiter, (req, res) => {
 // Routes with specific rate limiting
 app.use('/webhook', webhookLimiter, require('./routes/webhook'));
 
-// MoMo payment routes
-app.use('/momo', require('./routes/momo'));
+// MoMo payment routes (with optional IP allowlist for callbacks)
+const ipAllowlist = require('./middlewares/ipAllowlist');
+app.use('/momo', ipAllowlist('MOMO_CALLBACK_IPS'), require('./routes/momo'));
 
 // Payment management routes
 app.use('/payment', require('./routes/payment'));
