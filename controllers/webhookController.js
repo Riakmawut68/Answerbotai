@@ -168,19 +168,39 @@ async function handleMessage(event) {
         const senderId = event.sender.id;
         
         // Generate unique event ID for deduplication
-        const eventId = event.message?.mid || event.postback?.payload || `system_${Date.now()}_${Math.random()}`;
+        let eventId;
+        let shouldCheckDuplicates = false;
         
-        // Check for duplicate message processing
-        if (processedMessages.has(eventId)) {
-            logger.info(`⏭️ [DUPLICATE MESSAGE DETECTED]`);
-            logger.info(`  ├── User: ${senderId}`);
-            logger.info(`  ├── Event ID: ${eventId}`);
-            logger.info(`  └── Action: Skipping duplicate processing`);
-            return;
+        if (event.message?.mid) {
+            // For messages, use the Facebook message ID (guaranteed unique by Facebook)
+            eventId = `msg_${event.message.mid}`;
+            shouldCheckDuplicates = true;
+        } else if (event.postback?.payload) {
+            // For postbacks, we need to be more careful about deduplication
+            // Postbacks don't have unique IDs, so we'll use a combination approach
+            // Only deduplicate if the same user clicks the same button within a short time window
+            const now = Date.now();
+            const timeWindow = 5000; // 5 seconds
+            const postbackKey = `postback_${senderId}_${event.postback.payload}`;
+            
+            // Check if this exact postback was processed recently
+            const lastProcessed = processedMessages.get(postbackKey);
+            if (lastProcessed && (now - lastProcessed) < timeWindow) {
+                logger.info(`⏭️ [DUPLICATE POSTBACK DETECTED]`);
+                logger.info(`  ├── User: ${senderId}`);
+                logger.info(`  ├── Payload: ${event.postback.payload}`);
+                logger.info(`  ├── Time since last: ${now - lastProcessed}ms`);
+                logger.info(`  └── Action: Skipping duplicate postback processing`);
+                return;
+            }
+            
+            // Mark this postback as processed
+            processedMessages.set(postbackKey, now);
+            eventId = postbackKey; // For logging purposes
+        } else {
+            // For system events, use timestamp and random
+            eventId = `system_${Date.now()}_${Math.random()}`;
         }
-        
-        // Mark message as being processed
-        processedMessages.set(eventId, Date.now());
         
         logger.info(`👤 [MESSAGE PROCESSING]`);
         logger.info(`  ├── User: ${senderId}`);
