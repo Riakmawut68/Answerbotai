@@ -10,6 +10,21 @@ const config = require('../config');
 const limitService = require('../services/limitService');
 const { getUserSummary, incAI } = require('../utils/metrics');
 
+// In-memory cache for processed message IDs to prevent duplicates
+// In production, this should be replaced with Redis for multi-instance deployments
+const processedMessages = new Map();
+const MESSAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Clean up old message IDs periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [messageId, timestamp] of processedMessages.entries()) {
+        if (now - timestamp > MESSAGE_CACHE_TTL) {
+            processedMessages.delete(messageId);
+        }
+    }
+}, 60000); // Clean up every minute
+
 const webhookController = {
     // Verify webhook for Facebook
     verify: (req, res) => {
@@ -152,24 +167,57 @@ async function handleMessage(event) {
 
         const senderId = event.sender.id;
         
-        // Add duplicate event detection
-        const eventId = event.message?.mid || event.postback?.payload || 'system_event';
+        // Generate unique event ID for deduplication
+        const eventId = event.message?.mid || event.postback?.payload || `system_${Date.now()}_${Math.random()}`;
+        
+        // Check for duplicate message processing
+        if (processedMessages.has(eventId)) {
+            logger.info(`⏭️ [DUPLICATE MESSAGE DETECTED]`);
+            logger.info(`  ├── User: ${senderId}`);
+            logger.info(`  ├── Event ID: ${eventId}`);
+            logger.info(`  └── Action: Skipping duplicate processing`);
+            return;
+        }
+        
+        // Mark message as being processed
+        processedMessages.set(eventId, Date.now());
         
         logger.info(`👤 [MESSAGE PROCESSING]`);
         logger.info(`  ├── User: ${senderId}`);
         logger.info(`  ├── Event ID: ${eventId}`);
         logger.info(`  └── Action: Processing user interaction`);
 
-        // Get or create user
-        let user = await User.findOne({ messengerId: senderId });
-        if (!user) {
+        // Get or create user atomically to prevent race conditions
+        const user = await User.findOneAndUpdate(
+            { messengerId: senderId },
+            { 
+                $setOnInsert: { 
+                    messengerId: senderId,
+                    stage: 'initial',
+                    trialMessagesUsedToday: 0,
+                    dailyMessageCount: 0,
+                    subscription: {
+                        planType: 'none',
+                        status: 'none'
+                    },
+                    hasUsedTrial: false
+                }
+            },
+            { 
+                upsert: true, 
+                new: true,
+                runValidators: true
+            }
+        );
+
+        // Check if this was a newly created user
+        const isNewUser = user.createdAt && (Date.now() - user.createdAt.getTime()) < 5000; // Created within last 5 seconds
+        if (isNewUser) {
             logger.info(`🆕 [NEW USER REGISTERED]`);
             logger.info(`  ├── User: ${senderId}`);
             logger.info(`  └── Action: Creating user account`);
             
             logger.userRegistered(senderId);
-            user = new User({ messengerId: senderId });
-            await user.save();
             // Send welcome message for new users
             await sendWelcomeMessage(senderId, { __userDoc: user });
             return;
@@ -489,9 +537,26 @@ async function processUserMessage(user, messageText) {
         logger.info(`  ├── Daily count: ${user.dailyMessageCount}`);
         logger.info(`  └── Action: Checking message eligibility`);
         
+        // Atomic message count increment to prevent race conditions
+        let updateResult;
         if (user.subscription.planType === 'none') {
-            // Free trial logic
-            if (user.trialMessagesUsedToday >= config.limits.trialMessagesPerDay) {
+            // Free trial logic - use atomic increment with limit check
+            updateResult = await User.findOneAndUpdate(
+                { 
+                    messengerId: user.messengerId,
+                    trialMessagesUsedToday: { $lt: config.limits.trialMessagesPerDay }
+                },
+                { 
+                    $inc: { trialMessagesUsedToday: 1 }
+                },
+                { 
+                    new: true,
+                    runValidators: true
+                }
+            );
+
+            if (!updateResult) {
+                // Limit reached - user was not updated
                 logger.info(`🛑 [TRIAL LIMIT REACHED]`);
                 logger.info(`  ├── User: ${user.messengerId}`);
                 logger.info(`  ├── Trial used: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
@@ -504,14 +569,29 @@ async function processUserMessage(user, messageText) {
                 await sendSubscriptionOptions(user.messengerId);
                 return;
             }
-            user.trialMessagesUsedToday += 1;
+
             logger.info(`✅ [TRIAL MESSAGE UPDATED]`);
             logger.info(`  ├── User: ${user.messengerId}`);
-            logger.info(`  ├── Count: ${user.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
-            logger.info(`  └── Action: Trial count incremented`);
+            logger.info(`  ├── Count: ${updateResult.trialMessagesUsedToday}/${config.limits.trialMessagesPerDay}`);
+            logger.info(`  └── Action: Trial count incremented atomically`);
         } else {
-            // Paid subscription logic
-            if (user.dailyMessageCount >= config.limits.subscriptionMessagesPerDay) {
+            // Paid subscription logic - use atomic increment with limit check
+            updateResult = await User.findOneAndUpdate(
+                { 
+                    messengerId: user.messengerId,
+                    dailyMessageCount: { $lt: config.limits.subscriptionMessagesPerDay }
+                },
+                { 
+                    $inc: { dailyMessageCount: 1 }
+                },
+                { 
+                    new: true,
+                    runValidators: true
+                }
+            );
+
+            if (!updateResult) {
+                // Limit reached - user was not updated
                 logger.info(`🛑 [DAILY LIMIT REACHED]`);
                 logger.info(`  ├── User: ${user.messengerId}`);
                 logger.info(`  ├── Limit: ${config.limits.subscriptionMessagesPerDay}`);
@@ -520,14 +600,15 @@ async function processUserMessage(user, messageText) {
                 await messengerService.sendText(user.messengerId, 'You\'ve reached your daily message limit. Try again tomorrow!');
                 return;
             }
-            user.dailyMessageCount += 1;
+
             logger.info(`✅ [DAILY MESSAGE UPDATED]`);
             logger.info(`  ├── User: ${user.messengerId}`);
-            logger.info(`  ├── Count: ${user.dailyMessageCount}/${config.limits.subscriptionMessagesPerDay}`);
-            logger.info(`  └── Action: Daily count incremented`);
+            logger.info(`  ├── Count: ${updateResult.dailyMessageCount}/${config.limits.subscriptionMessagesPerDay}`);
+            logger.info(`  └── Action: Daily count incremented atomically`);
         }
 
-        await user.save();
+        // Update the user object with the latest data for AI processing
+        Object.assign(user, updateResult);
         logger.info(`🚀 [AI RESPONSE GENERATION]`);
         logger.info(`  ├── User: ${user.messengerId}`);
         logger.info(`  ├── Status: Proceeding to AI service`);
